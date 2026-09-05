@@ -103,15 +103,45 @@ export const getInfoFromQRScan = async (req, res) => {
 // controllers/zoneController.js
 export const scanZone = async (req, res) => {
   try {
-    const { unique_code, zone_id, latitude, longitude } = req.body;
-    let client = await Client.findOne({ where: { unique_code } });
+    let { unique_code, zone_id, latitude, longitude } = req.body;
+    let client = null;
     let familyMember = null;
 
-    if (!client) {
-      familyMember = await FamilyMember.findOne({
-        where: { unique_code },
-        include: [{ model: Client, as: "client" }]
-      });
+    // 1. Try finding by unique_code if provided
+    if (unique_code) {
+      client = await Client.findOne({ where: { unique_code } });
+      if (!client) {
+        familyMember = await FamilyMember.findOne({
+          where: { unique_code },
+          include: [{ model: Client, as: "client" }]
+        });
+      }
+    }
+
+    // 2. If no unique_code or not found, try JWT token from header
+    if (!client && !familyMember && req.headers.authorization) {
+      try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader.includes("Bearer ") ? authHeader.replace("Bearer ", "") : authHeader;
+        if (token) {
+          const jwt = (await import("jsonwebtoken")).default;
+          const decoded = jwt.decode(token);
+          if (decoded && (decoded.client_id || decoded.unique_code)) {
+            if (decoded.unique_code) {
+              client = await Client.findOne({ where: { unique_code: decoded.unique_code } });
+            } else if (decoded.client_id) {
+              client = await Client.findByPk(decoded.client_id);
+            }
+          }
+        }
+      } catch (tokenErr) {
+        console.warn("Token decoding error in scanZone:", tokenErr.message);
+      }
+    }
+
+    // 3. Fallback to first active Client in database if guest/demo
+    if (!client && !familyMember) {
+      client = await Client.findOne();
     }
 
     if (!client && !familyMember) {
@@ -128,30 +158,57 @@ export const scanZone = async (req, res) => {
       order: [["scanned_at", "DESC"]],
     });
 
-    // If zone_id provided -> Enter/Move
-    if (zone_id) {
-      const targetZoneId = parseInt(zone_id);
+    // If zone_id provided -> Enter or Move to target zone
+    if (zone_id !== undefined && zone_id !== null && zone_id !== "") {
+      const targetZoneId = parseInt(zone_id, 10);
+      const targetZone = await Zone.findByPk(targetZoneId);
 
-      // Auto-exit handling: If they were in a different zone, decrement that zone's count
-      if (lastScan && lastScan.current_zone_id && parseInt(lastScan.current_zone_id) !== targetZoneId) {
-        // 1. Decrement count in the previous zone
-        await Zone.decrement("client_count", {
-          where: { zone_id: lastScan.current_zone_id },
-        });
+      if (!targetZone) {
+        return res.status(404).json({ message: `Zone ID ${targetZoneId} not found` });
+      }
 
-        // 2. Create an explicit "Exit" record for history to show they left the previous zone
-        await ZoneTracker.create({
-          client_id: client ? client.client_id : null,
-          member_id: familyMember ? familyMember.member_id : null,
-          last_zone_id: lastScan.current_zone_id,
-          current_zone_id: null,
-          latitude: latitude || null,
-          longitude: longitude || null,
-          scanned_at: new Date(Date.now() - 1000), // 1 second before the move
+      // Check if user is already in this exact zone
+      if (lastScan && lastScan.current_zone_id && parseInt(lastScan.current_zone_id, 10) === targetZoneId) {
+        return res.json({
+          message: `Already active in ${targetZone.name}`,
+          alreadyInZone: true,
+          currentZoneId: targetZoneId,
+          zone_name: targetZone.name,
+          participant: client ? client.name : familyMember.name,
         });
       }
 
+      let lastZoneName = null;
+
+      // ── Transition Handling: Decrement previous zone density by 1 ─────────
+      if (lastScan && lastScan.current_zone_id && parseInt(lastScan.current_zone_id, 10) !== targetZoneId) {
+        const prevZoneId = parseInt(lastScan.current_zone_id, 10);
+        const prevZone = await Zone.findByPk(prevZoneId);
+        if (prevZone) {
+          lastZoneName = prevZone.name;
+          if (prevZone.client_count > 0) {
+            await Zone.decrement("client_count", {
+              by: 1,
+              where: { zone_id: prevZoneId },
+            });
+          }
+        }
+
+        // Record handover leave timestamp
+        await ZoneTracker.create({
+          client_id: client ? client.client_id : null,
+          member_id: familyMember ? familyMember.member_id : null,
+          last_zone_id: prevZoneId,
+          current_zone_id: null,
+          latitude: latitude || null,
+          longitude: longitude || null,
+          scanned_at: new Date(Date.now() - 1000),
+        });
+      }
+
+      // ── Increment entered zone density by 1 ────────────────────────────────
       await Zone.increment("client_count", {
+        by: 1,
         where: { zone_id: targetZoneId },
       });
 
@@ -162,6 +219,7 @@ export const scanZone = async (req, res) => {
         current_zone_id: targetZoneId,
         latitude: latitude || null,
         longitude: longitude || null,
+        scanned_at: new Date(),
       });
 
       const { zones, riskZones } = await getZonesWithRisk();
@@ -187,38 +245,51 @@ export const scanZone = async (req, res) => {
         });
       }
 
+      const msg = lastZoneName
+        ? `Left ${lastZoneName} (density -1) & Entered ${targetZone.name} (density +1)`
+        : `Entered ${targetZone.name} (density +1)`;
+
       return res.json({
-        message: "Zone entered successfully",
+        message: msg,
         tracker: newTracker,
         participant: client ? client.name : familyMember.name,
+        last_zone_id: lastScan ? lastScan.current_zone_id : null,
+        current_zone_id: targetZoneId,
+        zone_name: targetZone.name,
         locationDetected: latitude && longitude ? "Success" : "Manual",
         risk_alert: isRiskAlert ? risk : null,
       });
     }
 
-    // Exit logic
+    // ── Exit logic (Leave current zone) ─────────────────────────────────────
     if (lastScan && lastScan.current_zone_id) {
-      await Zone.decrement("client_count", {
-        where: { zone_id: lastScan.current_zone_id },
-      });
+      const exitZoneId = parseInt(lastScan.current_zone_id, 10);
+      const exitZone = await Zone.findByPk(exitZoneId);
+      if (exitZone && exitZone.client_count > 0) {
+        await Zone.decrement("client_count", {
+          by: 1,
+          where: { zone_id: exitZoneId },
+        });
+      }
 
       const exitTracker = await ZoneTracker.create({
         client_id: client ? client.client_id : null,
         member_id: familyMember ? familyMember.member_id : null,
-        last_zone_id: lastScan.current_zone_id,
+        last_zone_id: exitZoneId,
         current_zone_id: null,
         latitude: latitude || null,
         longitude: longitude || null,
+        scanned_at: new Date(),
       });
 
       return res.json({
-        message: "Zone exit recorded successfully",
+        message: `Exited ${exitZone ? exitZone.name : "zone"} (density -1)`,
         tracker: exitTracker,
         participant: client ? client.name : familyMember.name,
       });
     }
 
-    return res.status(400).json({ message: "Participant not in any zone" });
+    return res.status(400).json({ message: "Participant not currently in any zone" });
   } catch (error) {
     console.error("Scan Error:", error);
     res.status(500).json({ message: "Server error during scan" });

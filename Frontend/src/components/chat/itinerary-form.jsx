@@ -1,322 +1,323 @@
-"use client";
+import React, { useState } from "react";
+import { format, addDays } from "date-fns";
+import {
+  MapPin,
+  Calendar as CalendarIcon,
+  Users,
+  Wallet,
+  Sparkles,
+  Compass,
+  ArrowRight,
+  Loader2,
+  Check,
+  Flame,
+  Languages
+} from "lucide-react";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { format } from "date-fns";
-import { Button } from "../ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
-import { Input } from "../ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
-import { Calendar } from "../ui/calendar";
-import { cn } from "../../lib/utils";
-import { Bot, Calendar as CalendarIcon, Loader2, MapPin, Users, Wallet, Sparkles, Languages } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-const formSchema = z.object({
-  origin: z.string().min(2, "Please enter a valid starting location"),
-  destination: z.string().min(2, "Please enter a valid destination"),
-  departureDate: z.date({
-    required_error: "Departure date is required"
-  }),
-  arrivalDate: z.date({
-    required_error: "Arrival date is required"
-  }),
-  numberOfPeople: z.string().min(1, "At least 1 person"),
-  budget: z.string().min(2, "Please specify a budget style"),
-  style: z.string().min(2, "Please specify a travel style"),
-  language: z.enum(["Hindi", "English"])
-}).refine(data => data.arrivalDate >= data.departureDate, {
-  message: "Arrival date must be after departure date",
-  path: ["arrivalDate"]
-});
-export default function ItineraryForm({
-  onSubmit,
-  isLoading
-}) {
-  const form = useForm({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      origin: "",
-      destination: "",
-      numberOfPeople: "1",
-      budget: "Modest",
-      style: "Peaceful",
-      language: "Hindi"
-    }
-  });
-  const onFormSubmit = values => {
-    const formattedValues = {
-      ...values,
-      numberOfPeople: parseInt(values.numberOfPeople, 10)
-    };
-    onSubmit(formattedValues);
+const POPULAR_DESTINATIONS = [
+  { name: "Ujjain (Mahakal)", origin: "Indore" },
+  { name: "Varanasi (Kashi)", origin: "Lucknow" },
+  { name: "Ayodhya Dham", origin: "Delhi" },
+  { name: "Haridwar & Rishikesh", origin: "Delhi" },
+  { name: "Rameshwaram", origin: "Chennai" },
+  { name: "Tirupati Balaji", origin: "Bengaluru" },
+];
+
+const BUDGET_OPTIONS = [
+  { label: "Budget / Dharmshala", value: "Budget", desc: "Ashrams & local transit (₹1,500/day)" },
+  { label: "Comfort / Hotel", value: "Comfortable", desc: "3-star stays & private cabs (₹4,000/day)" },
+  { label: "Luxury / VIP", value: "Luxury", desc: "Premium resorts & VIP darshan (₹8,000+/day)" },
+];
+
+const STYLE_OPTIONS = [
+  { label: "Devotional & Peaceful", value: "Devotional", icon: "🙏" },
+  { label: "Rituals & Parikrama", value: "Rituals & Aarti", icon: "🔱" },
+  { label: "Family & Heritage", value: "Family Pilgrimage", icon: "🛕" },
+  { label: "Fast-Track / Weekend", value: "Express Darshan", icon: "⚡" },
+];
+
+export default function ItineraryForm({ onSubmit, isLoading }) {
+  const [origin, setOrigin] = useState("Indore");
+  const [destination, setDestination] = useState("Ujjain (Mahakaleshwar)");
+  const [departureDate, setDepartureDate] = useState(() => format(addDays(new Date(), 1), "yyyy-MM-dd"));
+  const [arrivalDate, setArrivalDate] = useState(() => format(addDays(new Date(), 4), "yyyy-MM-dd"));
+  const [numberOfPeople, setNumberOfPeople] = useState("2");
+  const [budget, setBudget] = useState("Comfortable");
+  const [style, setStyle] = useState("Devotional");
+  const [language, setLanguage] = useState("English");
+  const [formError, setFormError] = useState(null);
+
+  const handleQuickDest = (dest, orig) => {
+    setDestination(dest);
+    if (orig) setOrigin(orig);
   };
-  const departureDate = form.watch("departureDate");
-  return /*#__PURE__*/_jsxs("div", {
-    className: "bg-white p-6 sm:p-8",
-    children: [/*#__PURE__*/_jsxs("div", {
-      className: "mb-8",
-      children: [/*#__PURE__*/_jsx("h3", {
-        className: "text-2xl font-black text-slate-800 mb-2",
-        children: "Sacred Intentions"
-      }), /*#__PURE__*/_jsx("p", {
-        className: "text-sm font-medium text-slate-400",
-        children: "Define your pilgrimage parameters"
-      })]
-    }), /*#__PURE__*/_jsx(Form, {
-      ...form,
-      children: /*#__PURE__*/_jsxs("form", {
-        onSubmit: form.handleSubmit(onFormSubmit),
-        className: "space-y-6",
-        children: [/*#__PURE__*/_jsx(FormField, {
-          control: form.control,
-          name: "language",
-          render: ({
-            field
-          }) => /*#__PURE__*/_jsxs(FormItem, {
-            className: "space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100",
-            children: [/*#__PURE__*/_jsxs("div", {
-              className: "flex items-center gap-2 mb-2",
-              children: [/*#__PURE__*/_jsx(Languages, {
-                className: "h-4 w-4 text-orange-500"
-              }), /*#__PURE__*/_jsx(FormLabel, {
-                className: "text-xs font-black uppercase tracking-widest text-slate-400",
-                children: "Response Language"
-              })]
-            }), /*#__PURE__*/_jsx(FormControl, {
-              children: /*#__PURE__*/_jsxs(RadioGroup, {
-                onValueChange: field.onChange,
-                defaultValue: field.value,
-                className: "flex items-center space-x-6",
-                disabled: isLoading,
-                children: [/*#__PURE__*/_jsxs(FormItem, {
-                  className: "flex items-center space-x-2 space-y-0",
-                  children: [/*#__PURE__*/_jsx(FormControl, {
-                    children: /*#__PURE__*/_jsx(RadioGroupItem, {
-                      value: "Hindi",
-                      className: "border-orange-200 text-orange-600 focus:ring-orange-500"
-                    })
-                  }), /*#__PURE__*/_jsx(FormLabel, {
-                    className: "font-bold text-sm text-slate-700",
-                    children: "\u0939\u093F\u0902\u0926\u0940 (Hindi)"
-                  })]
-                }), /*#__PURE__*/_jsxs(FormItem, {
-                  className: "flex items-center space-x-2 space-y-0",
-                  children: [/*#__PURE__*/_jsx(FormControl, {
-                    children: /*#__PURE__*/_jsx(RadioGroupItem, {
-                      value: "English",
-                      className: "border-orange-200 text-orange-600 focus:ring-orange-500"
-                    })
-                  }), /*#__PURE__*/_jsx(FormLabel, {
-                    className: "font-bold text-sm text-slate-700",
-                    children: "English"
-                  })]
-                })]
-              })
-            }), /*#__PURE__*/_jsx(FormMessage, {})]
-          })
-        }), /*#__PURE__*/_jsxs("div", {
-          className: "grid grid-cols-1 md:grid-cols-2 gap-4",
-          children: [/*#__PURE__*/_jsx(FormField, {
-            control: form.control,
-            name: "origin",
-            render: ({
-              field
-            }) => /*#__PURE__*/_jsxs(FormItem, {
-              children: [/*#__PURE__*/_jsx(FormLabel, {
-                className: "text-[10px] font-black uppercase text-slate-400 tracking-widest",
-                children: "Starting Point"
-              }), /*#__PURE__*/_jsx(FormControl, {
-                children: /*#__PURE__*/_jsxs("div", {
-                  className: "relative",
-                  children: [/*#__PURE__*/_jsx(MapPin, {
-                    className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300"
-                  }), /*#__PURE__*/_jsx(Input, {
-                    placeholder: "e.g., Mumbai",
-                    className: "pl-10 h-12 rounded-xl border-slate-100 focus:border-orange-500/50 bg-slate-50/50 font-medium",
-                    ...field
-                  })]
-                })
-              }), /*#__PURE__*/_jsx(FormMessage, {})]
-            })
-          }), /*#__PURE__*/_jsx(FormField, {
-            control: form.control,
-            name: "destination",
-            render: ({
-              field
-            }) => /*#__PURE__*/_jsxs(FormItem, {
-              children: [/*#__PURE__*/_jsx(FormLabel, {
-                className: "text-[10px] font-black uppercase text-slate-400 tracking-widest",
-                children: "Holy Destination"
-              }), /*#__PURE__*/_jsx(FormControl, {
-                children: /*#__PURE__*/_jsxs("div", {
-                  className: "relative",
-                  children: [/*#__PURE__*/_jsx(MapPin, {
-                    className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-400"
-                  }), /*#__PURE__*/_jsx(Input, {
-                    placeholder: "e.g., Ujjain",
-                    className: "pl-10 h-12 rounded-xl border-slate-100 focus:border-orange-500/50 bg-slate-50/50 font-medium",
-                    ...field
-                  })]
-                })
-              }), /*#__PURE__*/_jsx(FormMessage, {})]
-            })
-          })]
-        }), /*#__PURE__*/_jsxs("div", {
-          className: "grid grid-cols-1 md:grid-cols-2 gap-4",
-          children: [/*#__PURE__*/_jsx(FormField, {
-            control: form.control,
-            name: "departureDate",
-            render: ({
-              field
-            }) => /*#__PURE__*/_jsxs(FormItem, {
-              className: "flex flex-col",
-              children: [/*#__PURE__*/_jsx(FormLabel, {
-                className: "text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5",
-                children: "Arrival (Start)"
-              }), /*#__PURE__*/_jsxs(Popover, {
-                modal: true,
-                children: [/*#__PURE__*/_jsx(PopoverTrigger, {
-                  asChild: true,
-                  children: /*#__PURE__*/_jsx(FormControl, {
-                    children: /*#__PURE__*/_jsxs(Button, {
-                      variant: "outline",
-                      className: cn("w-full h-12 rounded-xl border-slate-100 bg-slate-50/50 pl-3 text-left font-medium", !field.value && "text-slate-400"),
-                      children: [/*#__PURE__*/_jsx(CalendarIcon, {
-                        className: "mr-2 h-4 w-4 text-slate-300"
-                      }), field.value ? format(field.value, "PPP") : "Select date"]
-                    })
-                  })
-                }), /*#__PURE__*/_jsx(PopoverContent, {
-                  className: "w-auto p-0",
-                  align: "start",
-                  children: /*#__PURE__*/_jsx(Calendar, {
-                    mode: "single",
-                    selected: field.value,
-                    onSelect: field.onChange,
-                    disabled: date => date < new Date(new Date().setHours(0, 0, 0, 0))
-                  })
-                })]
-              }), /*#__PURE__*/_jsx(FormMessage, {})]
-            })
-          }), /*#__PURE__*/_jsx(FormField, {
-            control: form.control,
-            name: "arrivalDate",
-            render: ({
-              field
-            }) => /*#__PURE__*/_jsxs(FormItem, {
-              className: "flex flex-col",
-              children: [/*#__PURE__*/_jsx(FormLabel, {
-                className: "text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1.5",
-                children: "Departure (End)"
-              }), /*#__PURE__*/_jsxs(Popover, {
-                modal: true,
-                children: [/*#__PURE__*/_jsx(PopoverTrigger, {
-                  asChild: true,
-                  children: /*#__PURE__*/_jsx(FormControl, {
-                    children: /*#__PURE__*/_jsxs(Button, {
-                      variant: "outline",
-                      className: cn("w-full h-12 rounded-xl border-slate-100 bg-slate-50/50 pl-3 text-left font-medium", !field.value && "text-slate-400"),
-                      children: [/*#__PURE__*/_jsx(CalendarIcon, {
-                        className: "mr-2 h-4 w-4 text-slate-300"
-                      }), field.value ? format(field.value, "PPP") : "Select date"]
-                    })
-                  })
-                }), /*#__PURE__*/_jsx(PopoverContent, {
-                  className: "w-auto p-0",
-                  align: "start",
-                  children: /*#__PURE__*/_jsx(Calendar, {
-                    mode: "single",
-                    selected: field.value,
-                    onSelect: field.onChange,
-                    disabled: date => departureDate ? date <= departureDate : date < new Date(new Date().setHours(0, 0, 0, 0))
-                  })
-                })]
-              }), /*#__PURE__*/_jsx(FormMessage, {})]
-            })
-          })]
-        }), /*#__PURE__*/_jsxs("div", {
-          className: "grid grid-cols-1 md:grid-cols-2 gap-4",
-          children: [/*#__PURE__*/_jsx(FormField, {
-            control: form.control,
-            name: "numberOfPeople",
-            render: ({
-              field
-            }) => /*#__PURE__*/_jsxs(FormItem, {
-              children: [/*#__PURE__*/_jsx(FormLabel, {
-                className: "text-[10px] font-black uppercase text-slate-400 tracking-widest",
-                children: "Travelers"
-              }), /*#__PURE__*/_jsx(FormControl, {
-                children: /*#__PURE__*/_jsxs("div", {
-                  className: "relative",
-                  children: [/*#__PURE__*/_jsx(Users, {
-                    className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300"
-                  }), /*#__PURE__*/_jsx(Input, {
-                    type: "number",
-                    min: "1",
-                    className: "pl-10 h-12 rounded-xl border-slate-100 bg-slate-50/50 font-medium",
-                    ...field
-                  })]
-                })
-              }), /*#__PURE__*/_jsx(FormMessage, {})]
-            })
-          }), /*#__PURE__*/_jsx(FormField, {
-            control: form.control,
-            name: "budget",
-            render: ({
-              field
-            }) => /*#__PURE__*/_jsxs(FormItem, {
-              children: [/*#__PURE__*/_jsx(FormLabel, {
-                className: "text-[10px] font-black uppercase text-slate-400 tracking-widest",
-                children: "Financial Style"
-              }), /*#__PURE__*/_jsx(FormControl, {
-                children: /*#__PURE__*/_jsxs("div", {
-                  className: "relative",
-                  children: [/*#__PURE__*/_jsx(Wallet, {
-                    className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-300"
-                  }), /*#__PURE__*/_jsx(Input, {
-                    placeholder: "e.g., Luxury, Modest",
-                    className: "pl-10 h-12 rounded-xl border-slate-100 bg-slate-50/50 font-medium",
-                    ...field
-                  })]
-                })
-              }), /*#__PURE__*/_jsx(FormMessage, {})]
-            })
-          })]
-        }), /*#__PURE__*/_jsx(FormField, {
-          control: form.control,
-          name: "style",
-          render: ({
-            field
-          }) => /*#__PURE__*/_jsxs(FormItem, {
-            children: [/*#__PURE__*/_jsx(FormLabel, {
-              className: "text-[10px] font-black uppercase text-slate-400 tracking-widest",
-              children: "Journey Intent (Style)"
-            }), /*#__PURE__*/_jsx(FormControl, {
-              children: /*#__PURE__*/_jsxs("div", {
-                className: "relative",
-                children: [/*#__PURE__*/_jsx(Sparkles, {
-                  className: "absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-400"
-                }), /*#__PURE__*/_jsx(Input, {
-                  placeholder: "e.g., Peaceful, Historical, Devotional",
-                  className: "pl-10 h-12 rounded-xl border-slate-100 bg-slate-50/50 font-medium",
-                  ...field
-                })]
-              })
-            }), /*#__PURE__*/_jsx(FormMessage, {})]
-          })
-        }), /*#__PURE__*/_jsxs(Button, {
-          type: "submit",
-          className: "w-full h-14 rounded-2xl bg-gradient-to-r from-orange-500 to-red-600 hover:shadow-lg hover:shadow-orange-500/20 text-white font-black text-sm uppercase tracking-widest transition-all active:scale-95",
-          disabled: isLoading,
-          children: [isLoading ? /*#__PURE__*/_jsx(Loader2, {
-            className: "mr-3 h-5 w-5 animate-spin"
-          }) : /*#__PURE__*/_jsx(Bot, {
-            className: "mr-3 h-5 w-5"
-          }), isLoading ? "Consulting AI..." : "Manifest Itinerary"]
-        })]
-      })
-    })]
-  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!origin.trim() || !destination.trim()) {
+      setFormError("Please enter both starting point and holy destination.");
+      return;
+    }
+
+    if (new Date(arrivalDate) < new Date(departureDate)) {
+      setFormError("Return date must be on or after departure date.");
+      return;
+    }
+
+    const payload = {
+      origin: origin.trim(),
+      destination: destination.trim(),
+      departureDate: new Date(departureDate),
+      arrivalDate: new Date(arrivalDate),
+      numberOfPeople: parseInt(numberOfPeople, 10) || 1,
+      budget,
+      style,
+      language,
+    };
+
+    onSubmit(payload);
+  };
+
+  return (
+    <div className="bg-white p-6 sm:p-8 md:p-10 max-h-[85vh] overflow-y-auto selection:bg-orange-100">
+      {/* HEADER */}
+      <div className="flex items-center justify-between border-b border-orange-100 pb-5 mb-6">
+        <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-[10px] font-black uppercase tracking-wider mb-2 border border-orange-100">
+            <Sparkles size={13} className="text-orange-600" /> Sacred Yatra Intelligence
+          </div>
+          <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Plan Your <span className="text-[#EA580C]">Divine Yatra</span>
+          </h3>
+          <p className="text-xs sm:text-sm font-medium text-slate-500 mt-1">
+            Fill in your pilgrimage details to receive an auspicious day-by-day itinerary.
+          </p>
+        </div>
+
+        {/* Language Pill */}
+        <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => setLanguage("English")}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              language === "English" ? "bg-white text-orange-600 shadow-sm" : "text-slate-500"
+            }`}
+          >
+            English
+          </button>
+          <button
+            type="button"
+            onClick={() => setLanguage("Hindi")}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+              language === "Hindi" ? "bg-white text-orange-600 shadow-sm" : "text-slate-500"
+            }`}
+          >
+            हिन्दी
+          </button>
+        </div>
+      </div>
+
+      {formError && (
+        <div className="mb-6 p-4 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{formError}</span>
+        </div>
+      )}
+
+      {/* QUICK PRESET CHIPS */}
+      <div className="mb-6">
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">
+          Popular Sacred Destinations:
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {POPULAR_DESTINATIONS.map((item, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleQuickDest(item.name, item.origin)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                destination.includes(item.name.split(" ")[0])
+                  ? "bg-orange-500 text-white border-orange-500 shadow-sm shadow-orange-500/20"
+                  : "bg-slate-50 hover:bg-orange-50/70 border-slate-200 text-slate-700 hover:border-orange-200"
+              }`}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* MAIN FORM */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        
+        {/* ORIGIN & DESTINATION */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <MapPin size={13} className="text-slate-400" /> Starting City (Origin)
+            </label>
+            <input
+              type="text"
+              value={origin}
+              onChange={(e) => setOrigin(e.target.value)}
+              placeholder="e.g. Mumbai, Delhi, Ahmedabad"
+              required
+              className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <Compass size={13} className="text-orange-600" /> Holy Destination
+            </label>
+            <input
+              type="text"
+              value={destination}
+              onChange={(e) => setDestination(e.target.value)}
+              placeholder="e.g. Ujjain, Varanasi, Ayodhya"
+              required
+              className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {/* DATES */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <CalendarIcon size={13} className="text-orange-600" /> Departure Date (Start)
+            </label>
+            <input
+              type="date"
+              value={departureDate}
+              min={format(new Date(), "yyyy-MM-dd")}
+              onChange={(e) => setDepartureDate(e.target.value)}
+              required
+              className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <CalendarIcon size={13} className="text-orange-600" /> Return Date (End)
+            </label>
+            <input
+              type="date"
+              value={arrivalDate}
+              min={departureDate}
+              onChange={(e) => setArrivalDate(e.target.value)}
+              required
+              className="w-full h-12 px-4 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-semibold text-slate-900 focus:bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        {/* TRAVELERS & BUDGET STYLE */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+          <div className="sm:col-span-4 space-y-1.5">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <Users size={13} className="text-slate-400" /> Number of Pilgrims
+            </label>
+            <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50 h-12">
+              <button
+                type="button"
+                onClick={() => setNumberOfPeople((prev) => Math.max(1, parseInt(prev, 10) - 1).toString())}
+                className="w-12 h-full font-black text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                -
+              </button>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={numberOfPeople}
+                onChange={(e) => setNumberOfPeople(e.target.value)}
+                className="w-full text-center bg-transparent text-sm font-black text-slate-900 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setNumberOfPeople((prev) => (parseInt(prev, 10) + 1).toString())}
+                className="w-12 h-full font-black text-slate-600 hover:bg-slate-200 transition-colors"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="sm:col-span-8 space-y-1.5">
+            <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+              <Wallet size={13} className="text-orange-600" /> Financial Style
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {BUDGET_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setBudget(opt.value)}
+                  className={`p-2.5 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                    budget === opt.value
+                      ? "bg-orange-50 border-orange-400 text-orange-900 shadow-sm"
+                      : "bg-slate-50 border-slate-200 text-slate-700 hover:border-orange-200"
+                  }`}
+                >
+                  <span className="text-xs font-bold leading-tight flex items-center justify-between">
+                    {opt.label.split(" / ")[0]}
+                    {budget === opt.value && <Check size={12} className="text-orange-600" />}
+                  </span>
+                  <span className="text-[10px] text-slate-500 font-medium leading-tight mt-1 truncate">
+                    {opt.desc.split(" ")[0]}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* JOURNEY STYLE */}
+        <div className="space-y-2">
+          <label className="text-[11px] font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+            <Sparkles size={13} className="text-orange-600" /> Sacred Journey Intent
+          </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            {STYLE_OPTIONS.map((s) => (
+              <button
+                key={s.value}
+                type="button"
+                onClick={() => setStyle(s.value)}
+                className={`p-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
+                  style === s.value
+                    ? "bg-orange-500 text-white border-orange-500 shadow-md shadow-orange-500/20"
+                    : "bg-slate-50 hover:bg-orange-50/50 border-slate-200 text-slate-700 hover:border-orange-200"
+                }`}
+              >
+                <span className="text-lg">{s.icon}</span>
+                <span className="text-xs font-bold leading-tight">{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* SUBMIT CTA BUTTON */}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full h-14 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#C2410C] hover:from-[#D94F04] hover:to-[#9A3412] text-white font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-3 shadow-xl shadow-orange-600/25 active:scale-[0.99] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Crafting Sacred Itinerary...</span>
+            </>
+          ) : (
+            <>
+              <span>MANIFEST SACRED ITINERARY</span>
+              <ArrowRight size={18} />
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  );
 }

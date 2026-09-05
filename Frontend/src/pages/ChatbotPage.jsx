@@ -483,22 +483,13 @@ export default function ChatbotPage() {
               </div>
 
               {/* Bottom CTA Button */}
-              <Dialog open={formOpen} onOpenChange={setFormOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    onClick={() => setFormOpen(true)}
-                    className="w-full py-3.5 px-6 rounded-full bg-[#EA580C] hover:bg-[#D94F04] text-white font-bold text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2.5 shadow-lg shadow-orange-600/25 active:scale-[0.99] transition-all"
-                  >
-                    <span>PLAN YOUR YATRA</span>
-                    <ArrowRight size={17} />
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="max-w-xl p-0 border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white/95 backdrop-blur-xl">
-                  <DialogTitle className="sr-only">Detailed Planner Form</DialogTitle>
-                  <DialogDescriptionComponent className="sr-only">Enter your travel details here.</DialogDescriptionComponent>
-                  <ItineraryForm onSubmit={handleFormSubmit} isLoading={isLoading} />
-                </DialogContent>
-              </Dialog>
+              <button
+                onClick={() => navigate('/travel-planner')}
+                className="w-full py-3.5 px-6 rounded-full bg-[#EA580C] hover:bg-[#D94F04] text-white font-bold text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2.5 shadow-lg shadow-orange-600/25 active:scale-[0.99] transition-all cursor-pointer"
+              >
+                <span>PLAN YOUR YATRA</span>
+                <ArrowRight size={17} />
+              </button>
             </div>
 
             {/* CARD 2 — DIVYA CHATBOT */}

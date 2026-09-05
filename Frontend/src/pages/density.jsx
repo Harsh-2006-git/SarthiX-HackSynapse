@@ -21,6 +21,7 @@ const Dashboard = () => {
   const [historyType, setHistoryType] = useState("self"); // "self" or "family"
   const [selectedMember, setSelectedMember] = useState(null);
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [currentActiveZoneId, setCurrentActiveZoneId] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const scanInterval = useRef(null);
@@ -46,9 +47,12 @@ const Dashboard = () => {
     try {
       const response = await fetch(`${API_V1}/zone/density`);
       const data = await response.json();
-      setZones(data.zones || data || []);
+      const loadedZones = data.zones || data || [];
+      setZones(loadedZones);
+      return loadedZones;
     } catch (error) {
       console.error("Error fetching zone data:", error);
+      return [];
     }
   };
 
@@ -77,9 +81,127 @@ const Dashboard = () => {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
-      if (res.ok) setHistoryData(data.history || []);
+      if (res.ok && data.history) {
+        setHistoryData(data.history || []);
+        // Find latest active zone
+        const activeLog = (data.history || [])
+          .slice()
+          .reverse()
+          .find((l) => l.current_zone && l.current_zone !== "Exit Point" && l.current_zone !== "Staying in Zone");
+        if (activeLog && activeLog.current_zone) {
+          const match = zones.find((z) => z.zone_name === activeLog.current_zone);
+          if (match) setCurrentActiveZoneId(match.zone_id);
+        }
+      }
     } catch (err) {
       console.error("History fetch failed", err);
+    }
+  };
+
+  // ── Enter / Switch Zone Handler ──────────────────────────────────────────
+  // Entered zone density increases by +1, last zone density reduces by -1
+  const handleEnterZone = async (zoneId) => {
+    const targetZoneId = parseInt(zoneId, 10);
+    const prevZoneId = currentActiveZoneId ? parseInt(currentActiveZoneId, 10) : null;
+
+    if (prevZoneId === targetZoneId) {
+      setScanResult({
+        message: `📍 You are already checked in to Zone ${targetZoneId}`,
+      });
+      return;
+    }
+
+    const prevZoneName = prevZoneId ? zones.find((z) => z.zone_id === prevZoneId)?.zone_name : null;
+    const targetZoneName = zones.find((z) => z.zone_id === targetZoneId)?.zone_name || `Zone ${targetZoneId}`;
+
+    // 1. Optimistic UI update: increase entered zone by 1, decrease last zone by 1
+    setZones((prevZones) =>
+      prevZones.map((z) => {
+        if (z.zone_id === targetZoneId) {
+          return { ...z, density: Number(z.density || 0) + 1 };
+        }
+        if (prevZoneId && z.zone_id === prevZoneId) {
+          return { ...z, density: Math.max(0, Number(z.density || 0) - 1) };
+        }
+        return z;
+      })
+    );
+
+    setCurrentActiveZoneId(targetZoneId);
+
+    // 2. Call backend
+    try {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const uniqueCode = scanData.unique_code || user.unique_code || "";
+
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch(`${API_V1}/zone/scan`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          zone_id: targetZoneId,
+          unique_code: uniqueCode,
+        }),
+      });
+
+      const result = await response.json();
+      setScanResult({
+        message: prevZoneName
+          ? `✅ Left ${prevZoneName} (density -1) & Entered ${targetZoneName} (density +1)`
+          : `✅ Entered ${targetZoneName} (density +1)`,
+      });
+
+      if (response.ok) {
+        await fetchZoneData();
+        await fetchHistory();
+      }
+    } catch (error) {
+      console.error("Error entering zone:", error);
+      fetchZoneData(); // Rollback to actual state
+    }
+  };
+
+  // ── Leave Current Zone Handler ──────────────────────────────────────────
+  const handleExitCurrentZone = async () => {
+    if (!currentActiveZoneId) return;
+    const exitZoneId = currentActiveZoneId;
+    const exitZoneName = zones.find((z) => z.zone_id === exitZoneId)?.zone_name || `Zone ${exitZoneId}`;
+
+    // Optimistic UI update
+    setZones((prevZones) =>
+      prevZones.map((z) => {
+        if (z.zone_id === exitZoneId) {
+          return { ...z, density: Math.max(0, Number(z.density || 0) - 1) };
+        }
+        return z;
+      })
+    );
+    setCurrentActiveZoneId(null);
+
+    try {
+      const token = localStorage.getItem("token");
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const uniqueCode = scanData.unique_code || user.unique_code || "";
+
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const response = await fetch(`${API_V1}/zone/scan`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ unique_code: uniqueCode }),
+      });
+
+      const result = await response.json();
+      setScanResult({ message: `✅ Exited ${exitZoneName} (density -1)` });
+      await fetchZoneData();
+      await fetchHistory();
+    } catch (error) {
+      console.error("Error exiting zone:", error);
+      fetchZoneData();
     }
   };
 
@@ -92,9 +214,13 @@ const Dashboard = () => {
     }
 
     try {
+      const token = localStorage.getItem("token");
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const response = await fetch(`${API_V1}/zone/scan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(scanData),
       });
 
@@ -102,6 +228,9 @@ const Dashboard = () => {
       setScanResult(result);
 
       if (response.ok) {
+        if (scanData.zone_id) {
+          setCurrentActiveZoneId(parseInt(scanData.zone_id, 10));
+        }
         fetchZoneData();
         setScanData((prev) => ({ ...prev, unique_code: "" }));
       }
@@ -114,16 +243,23 @@ const Dashboard = () => {
   // Handle zone exit
   const handleZoneExit = async (unique_code) => {
     try {
+      const token = localStorage.getItem("token");
+      const headers = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const response = await fetch(`${API_V1}/zone/scan`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ unique_code }),
       });
 
       const result = await response.json();
       setScanResult(result);
 
-      if (response.ok) fetchZoneData();
+      if (response.ok) {
+        setCurrentActiveZoneId(null);
+        fetchZoneData();
+      }
     } catch (error) {
       console.error("Error exiting zone:", error);
       setScanResult({ message: "Error exiting zone" });
@@ -536,19 +672,30 @@ const Dashboard = () => {
                           left: `${15 + (zone.zone_id % 3) * 25}%`
                         };
 
+                        const isUserInThisZone = currentActiveZoneId === zone.zone_id;
+
                         return (
                           <div
                             key={zone.zone_id}
-                            className={`absolute w-12 h-12 rounded-full text-white flex items-center justify-center font-bold cursor-pointer shadow-lg border-2 border-white transition-all duration-300 hover:scale-110 ${getDensityStatus(zone.density).color
-                              }`}
+                            className={`absolute w-12 h-12 rounded-full text-white flex flex-col items-center justify-center font-black cursor-pointer shadow-xl border-2 transition-all duration-300 hover:scale-125 ${
+                              isUserInThisZone
+                                ? "border-orange-400 ring-4 ring-orange-500/80 scale-110 z-20 animate-pulse"
+                                : "border-white"
+                            } ${getDensityStatus(zone.density).color}`}
                             style={{
                               top: pos.top,
                               left: pos.left,
                               transform: "translate(-50%, -50%)",
                             }}
                             onClick={() => setSelectedZone(zone)}
+                            title={`${zone.zone_name} (Density: ${zone.density})`}
                           >
-                            {zone.zone_id}
+                            <span className="text-sm leading-none">{zone.zone_id}</span>
+                            {isUserInThisZone && (
+                              <span className="text-[7px] font-black uppercase tracking-tighter bg-white text-orange-600 px-1 rounded-full shadow-2xs mt-0.5">
+                                YOU
+                              </span>
+                            )}
                           </div>
                         );
                       })}
@@ -581,10 +728,31 @@ const Dashboard = () => {
               {/* Zone Overview */}
               <div className="bg-slate-900 rounded-2xl md:rounded-[2.5rem] p-4 md:p-8 shadow-2xl shadow-slate-900/20 text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                <h2 className="text-2xl md:text-3xl font-bold mb-2 relative z-10">Zone Overview</h2>
+                <div className="flex items-center justify-between mb-2 relative z-10">
+                  <h2 className="text-2xl md:text-3xl font-bold">Zone Overview</h2>
+                  {currentActiveZoneId && (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      Active: Zone {currentActiveZoneId}
+                    </span>
+                  )}
+                </div>
                 <p className="text-slate-400 text-sm mb-6 relative z-10">Real-time density metrics</p>
 
-                <div className="mt-4 md:mt-0 md:p-6">
+                {/* Scan / Transition Feedback Banner */}
+                {scanResult && scanResult.message && (
+                  <div className="mb-4 p-3.5 rounded-2xl bg-orange-500/20 border border-orange-500/40 text-orange-200 text-xs font-bold flex items-center justify-between gap-2 relative z-10 animate-fade-in">
+                    <span>{scanResult.message}</span>
+                    <button
+                      onClick={() => setScanResult(null)}
+                      className="text-orange-300 hover:text-white text-xs font-black ml-2"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-4 md:mt-0 md:p-2">
                   {loading ? (
                     <div className="text-center py-20">
                       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
@@ -598,22 +766,58 @@ const Dashboard = () => {
                     <div className="space-y-3">
                       {zones.map((zone) => {
                         const status = getDensityStatus(zone.density);
+                        const isCurrent = currentActiveZoneId === zone.zone_id;
                         return (
                           <div
                             key={zone.zone_id}
-                            className={`p-3 rounded-xl shadow-lg cursor-pointer border-l-4 ${status.color} bg-gradient-to-r from-gray-50 to-gray-100 hover:from-white hover:to-white transition-all duration-300 transform hover:scale-[1.02]`}
-                            onClick={() => setSelectedZone(zone)}
+                            className={`p-3.5 rounded-xl shadow-lg border-l-4 ${status.color} ${
+                              isCurrent
+                                ? "bg-orange-50 border-2 border-orange-400 ring-2 ring-orange-500/30"
+                                : "bg-gradient-to-r from-gray-50 to-gray-100 hover:from-white hover:to-white"
+                            } transition-all duration-300 transform hover:scale-[1.01]`}
                           >
                             <div className="flex justify-between items-center text-slate-900">
-                              <div>
-                                <h3 className="font-bold text-base text-gray-800">{zone.zone_name}</h3>
+                              <div
+                                className="cursor-pointer flex-1"
+                                onClick={() => setSelectedZone(zone)}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <h3 className="font-bold text-base text-gray-800">{zone.zone_name}</h3>
+                                  {isCurrent && (
+                                    <span className="px-2 py-0.5 rounded-md bg-orange-600 text-white text-[9px] font-black uppercase tracking-wider">
+                                      📍 You Are Here
+                                    </span>
+                                  )}
+                                </div>
                                 <p className="text-xs text-gray-500">Zone ID: <span className="font-bold">{zone.zone_id}</span></p>
                               </div>
-                              <div className="text-right">
-                                <span className={`px-3 py-1 text-xs font-bold rounded-full ${status.color} text-white shadow-md`}>
-                                  {status.text}
-                                </span>
-                                <p className="text-xl font-bold text-gray-700 mt-1">{zone.density}</p>
+
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <span className={`px-3 py-1 text-xs font-bold rounded-full ${status.color} text-white shadow-md`}>
+                                    {status.text}
+                                  </span>
+                                  <p className="text-xl font-bold text-gray-700 mt-1">{zone.density}</p>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (isCurrent) {
+                                      handleExitCurrentZone();
+                                    } else {
+                                      handleEnterZone(zone.zone_id);
+                                    }
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all shadow-xs ${
+                                    isCurrent
+                                      ? "bg-rose-50 text-rose-600 border border-rose-200 hover:bg-rose-600 hover:text-white"
+                                      : "bg-orange-600 hover:bg-orange-700 text-white"
+                                  }`}
+                                >
+                                  {isCurrent ? "Leave" : "Enter"}
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -834,21 +1038,58 @@ const Dashboard = () => {
                   {getDensityStatus(selectedZone.density).text}
                 </span>
               </div>
+              {/* Current user zone status & entry action */}
+              {currentActiveZoneId === selectedZone.zone_id ? (
+                <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl text-center space-y-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-emerald-700 block">
+                    📍 You are currently active in this zone
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleExitCurrentZone();
+                      setSelectedZone(null);
+                    }}
+                    className="w-full bg-rose-600 hover:bg-rose-700 text-white py-3 rounded-full font-bold transition-all shadow-md active:scale-95"
+                  >
+                    Leave Zone (Density -1)
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleEnterZone(selectedZone.zone_id);
+                      setSelectedZone(null);
+                    }}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3.5 rounded-full font-black text-sm uppercase tracking-wider transition-all shadow-lg shadow-orange-600/25 active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <span>📍 Enter This Zone</span>
+                    <span className="text-xs bg-white/20 px-2 py-0.5 rounded-md font-bold">(Density +1)</span>
+                  </button>
+                  <p className="text-[10px] text-center text-gray-500 font-medium">
+                    {currentActiveZoneId
+                      ? `Entering this zone will increase its count by 1 and reduce Zone ${currentActiveZoneId} count by 1.`
+                      : "Entering this zone will increase its active devotee count by 1."}
+                  </p>
+                </div>
+              )}
 
-              <div className="flex gap-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   onClick={() => {
                     setScanData((prev) => ({ ...prev, zone_id: selectedZone.zone_id }));
                     setSelectedZone(null);
                     setActiveTab("scanner");
                   }}
-                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-full font-bold transition-all duration-300 transform hover:scale-105"
+                  className="flex-1 bg-slate-900 hover:bg-slate-800 text-white px-5 py-2.5 rounded-full font-bold text-xs transition-all duration-300"
                 >
-                  Scan This Zone
+                  Scan QR Terminal
                 </button>
                 <button
                   onClick={() => setSelectedZone(null)}
-                  className="px-6 py-3 border-2 border-orange-50 text-orange-500 rounded-full font-bold hover:bg-orange-50 transition-all duration-300"
+                  className="px-6 py-2.5 border border-gray-200 text-gray-600 rounded-full font-bold text-xs hover:bg-gray-100 transition-all duration-300"
                 >
                   Close
                 </button>

@@ -18,6 +18,7 @@ import ListingDetails from "./pages/Parking/ListingDetails";
 import ParkingHost from "./pages/Parking/ParkingHost";
 import MyBookings from "./pages/Parking/MyBookings";
 import AIAssistantPage from "./pages/AIAssistantPage";
+import TravelPlannerPage from "./pages/TravelPlannerPage";
 import AIAssistant from "./components/AIAssistant";
 import NearbyServices from "./pages/NearbyServices";
 import ChatbotPage from "./pages/ChatbotPage";
@@ -93,6 +94,8 @@ function App() {
         <Route path="/parking/host" element={<ParkingHost />} />
         <Route path="/parking/my-bookings" element={<MyBookings />} />
         <Route path="/ai-assistant" element={<AIAssistantPage />} />
+        <Route path="/travel-planner" element={<TravelPlannerPage />} />
+        <Route path="/planner" element={<TravelPlannerPage />} />
         <Route path="/nearby" element={<NearbyServices />} />
         <Route path="/chatbot" element={<ChatbotPage />} />
         <Route path="/tracking" element={<TrackingPage />} />

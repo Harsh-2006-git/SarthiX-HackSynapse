@@ -1,19 +1,20 @@
 import React from "react";
 // @ts-ignore
 import Header from "../components/Header";
+// @ts-ignore
 import Footer from "../components/Footer";
 
-const LiveDarshan = () => {
-  const videoId = "-BdYhAVkykw"; // Your live video ID
+const LiveDarshan: React.FC = () => {
+  const videoId = "-BdYhAVkykw"; // Live video ID
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 pt-28">
+    <div className="min-h-screen bg-gray-50 text-gray-900 pt-28 flex flex-col justify-between">
       <Header />
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-6 w-full flex-grow">
         <h1 className="text-3xl md:text-5xl font-black text-center mb-8 text-gray-900 px-4 leading-tight">
           🔴 Live Darshan - Mahakaleshwar Jyotirlinga
         </h1>
-        <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl mb-8 border border-gray-200">
+        <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl mb-8 border border-gray-200">
           <iframe
             className="w-full h-full"
             src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}

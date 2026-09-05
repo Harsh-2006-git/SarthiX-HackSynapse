@@ -83,24 +83,55 @@ async function fetchRealHotels(destination, checkIn, checkOut, budget) {
   }
 }
 
-// ── SerpAPI: fetch real transport options ────────────────────────────────────
+// ── SerpAPI: fetch real transport options (Trains + Buses) ───────────────────
 async function fetchRealTransport(origin, destination) {
   try {
-    const res = await axios.get("https://serpapi.com/search.json", {
-      params: {
-        engine: "google",
-        q: `trains buses from ${origin} to ${destination} schedule timings India`,
-        gl: "in",
-        hl: "en",
-        api_key: process.env.SERP_API_KEY,
-      },
-      timeout: 8000,
-    });
+    const [trainRes, busRes] = await Promise.allSettled([
+      axios.get("https://serpapi.com/search.json", {
+        params: {
+          engine: "google",
+          q: `train from ${origin} to ${destination} schedule timing train number fare irctc`,
+          gl: "in",
+          hl: "en",
+          api_key: process.env.SERP_API_KEY,
+        },
+        timeout: 9000,
+      }),
+      axios.get("https://serpapi.com/search.json", {
+        params: {
+          engine: "google",
+          q: `bus from ${origin} to ${destination} timetable operators departure arrival fare redbus`,
+          gl: "in",
+          hl: "en",
+          api_key: process.env.SERP_API_KEY,
+        },
+        timeout: 9000,
+      }),
+    ]);
 
-    const organic = res.data.organic_results || [];
-    return organic.slice(0, 5).map(r =>
-      `${r.title}: ${(r.snippet || "").slice(0, 150)}`
-    );
+    const snippets = [];
+
+    const extractData = (res, type) => {
+      if (res.status === "fulfilled" && res.value?.data) {
+        const d = res.value.data;
+        if (d.answer_box) {
+          const text = d.answer_box.snippet || d.answer_box.answer || d.answer_box.title;
+          if (text) snippets.push(`[${type} SUMMARY]: ${text}`);
+        }
+        if (d.knowledge_graph?.description) {
+          snippets.push(`[${type} OVERVIEW]: ${d.knowledge_graph.description}`);
+        }
+        const organic = d.organic_results || [];
+        organic.slice(0, 4).forEach((r) => {
+          snippets.push(`[${type} OPTION]: ${r.title} — ${(r.snippet || "").slice(0, 200)}`);
+        });
+      }
+    };
+
+    extractData(trainRes, "TRAIN");
+    extractData(busRes, "BUS");
+
+    return snippets;
   } catch (err) {
     console.warn("[SerpAPI] Transport fetch failed:", err.message);
     return [];
@@ -220,8 +251,10 @@ router.post("/itinerary", async (req, res) => {
       return res.status(400).json({ error: "origin, destination, departureDate, and arrivalDate are required" });
     }
 
+    const isHindi = language === "Hindi" || language === "hi" || language === "hindi";
+
     // ── Fetch real-world data from SerpAPI in parallel ──────────────────────
-    console.log(`[SerpAPI] Fetching hotels in ${destination} and transport from ${origin}...`);
+    console.log(`[SerpAPI] Fetching real hotels in ${destination} and transport from ${origin}...`);
     const [hotels, transportSnippets] = await Promise.all([
       fetchRealHotels(destination, departureDate, arrivalDate, budget),
       fetchRealTransport(origin, destination),
@@ -230,65 +263,95 @@ router.post("/itinerary", async (req, res) => {
 
     // Build context blocks to inject into the AI prompt
     const hotelContext = hotels.length > 0
-      ? `\nREAL HOTELS available in ${destination} — use these EXACT names in every accommodation field (rotate day by day if stay is long):\n` +
-        hotels.map((h, i) => `  ${i + 1}. "${h.name}" | Rating: ${h.rating} | Price: ${h.pricePerNight}/night | Type: ${h.type}`).join("\n")
+      ? `\nREAL HOTELS available in ${destination} — use these EXACT names, ratings and prices in accommodation:\n` +
+        hotels.map((h, i) => `  ${i + 1}. Name: "${h.name}" | Rating: "${h.rating}" | Price: "${h.pricePerNight}" | Type: ${h.type}`).join("\n")
       : "";
 
     const transportContext = transportSnippets.length > 0
-      ? `\nREAL TRANSPORT INFO from ${origin} to ${destination} — extract and use actual train/bus names, numbers, and timings where mentioned:\n` +
+      ? `\nREAL TRANSPORT DATA (Trains & Buses) from ${origin} to ${destination} from Google/SerpAPI:\n` +
         transportSnippets.map(s => `  - ${s}`).join("\n")
       : "";
 
-    const prompt = `You are a travel agent specializing in creating detailed pilgrimage itineraries for Indian destinations.
-Generate a comprehensive travel itinerary as a valid JSON object ONLY — no extra text, no markdown, no code fences.
+    const languageInstruction = isHindi
+      ? `CRITICAL LANGUAGE REQUIREMENT: ALL output fields (title, destination, departureDate, arrivalDate, budget, style, total_estimated_cost, notes, daily_plan.title, daily_plan.subtitle, daily_plan.estimated_cost, daily_plan.activities, daily_plan.accommodation.name, daily_plan.accommodation.price, daily_plan.accommodation.rating, daily_plan.transportation_options.mode, daily_plan.transportation_options.details, daily_plan.transportation_options.price) MUST BE WRITTEN IN NATURAL, RESPECTFUL HINDI (देवनागरी लिपि).`
+      : `Language: Generate all textual content in English.`;
 
-User details:
-- Origin: ${origin}
-- Destination: ${destination}
+    const prompt = `You are an expert pilgrimage trip planner for DivyaYatra specializing in sacred yatras across India.
+Generate an authentic, highly detailed, day-wise pilgrimage travel itinerary as a valid JSON object ONLY — no markdown, no backticks, no code fences.
+
+User Travel Parameters:
+- Starting City (Origin): ${origin}
+- Holy Destination: ${destination}
 - Departure Date: ${departureDate}
-- Arrival Date: ${arrivalDate}
-- Number of People: ${numberOfPeople || 1}
-- Budget: ${budget || "Modest"}
-- Style: ${style || "Peaceful"}
+- Return/Arrival Date: ${arrivalDate}
+- Total Pilgrims: ${numberOfPeople || 1}
+- Budget Style: ${budget || "Comfortable"}
+- Journey Intent: ${style || "Devotional & Peaceful"}
+- Language: ${isHindi ? "Hindi" : "English"}
 
-All text in the response (except keys) should be in: ${language}.
+${languageInstruction}
 ${hotelContext}
 ${transportContext}
 
-STRICT INSTRUCTIONS:
-1. Use the EXACT hotel names from the list above in every "accommodation.name" field. Do NOT invent hotel names.
-2. For transportation on Day 1 (travel day), include the actual train or bus name/number from the transport info above (e.g., "12919 Malwa Express", "Intercity Express").
-3. Include specific temple names, ghat names, and real landmark names of ${destination} in activities (e.g., "Mahakaleshwar Jyotirlinga darshan", "Ram Ghat Aarti").
-4. For subsequent days, use autos/e-rickshaws/local transport with realistic pricing.
-5. accommodation.price should match the real price from the hotel list.
-6. accommodation.rating should match the real rating from the hotel list.
-7. Do NOT use generic names like "Local Hotel" or "Hotel ABC".
-8. Include a detailed "destination_history" section.
-9. Populate "train_connectivity" with factual details from transport info.
-10. Populate "recommended_hotels" using the top 3 hotels from the real hotel list.
+CRITICAL RULES & FORMATTING REQUIREMENTS:
+1. TITLE: Create a meaningful title like "${destination} तीर्थयात्रा: ${origin} से शांतिपूर्ण यात्रा" (or in English if language is English).
+2. DESTINATION: e.g. "${destination}, मध्य प्रदेश" (or state).
+3. TOTAL ESTIMATED COST: Include total cost for ${numberOfPeople || 1} travelers with itemized context, e.g. "₹6,500 - ₹7,500 (दो व्यक्तियों के लिए)" or "₹6,500 - ₹7,500 (for ${numberOfPeople || 1} persons)".
+4. DAILY PLAN:
+   - For Day 1 (Departure / Travel Day):
+     - activities: Preparation in ${origin}, reaching bus stand / railway station, boarding bus/train.
+     - transportation_options: Provide EXACT real train or bus details extracted from the transport data above:
+       * Mode: "बस" / "Bus" or "ट्रेन" / "Train"
+       * Details: Exact operator/train name (e.g. "शताब्दी ट्रैवेल्स (A/C, स्लीपर)" or "12919 मालवा एक्सप्रेस (3rd AC)"), departure time from ${origin} (e.g. "प्रस्थान: 20:30 बजे (${departureDate})"), arrival time at ${destination} (e.g. "आगमन: 05:00 बजे").
+       * Price: e.g. "लगभग ₹1000 - ₹1200 प्रति व्यक्ति" (or ₹/person in English).
+     - accommodation: If overnight travel, set name to "यात्रा के दौरान (शताब्दी ट्रैवेल्स बस में)" / "During transit in bus/train", rating: "लागू नहीं" / "N/A", price: "शामिल" / "Included in transit".
+     - estimated_cost: e.g. "₹2,600 (बस किराया और यात्रा के दौरान का भोजन)".
+   - For Day 2 (Sanctum Darshan & Holy Ghats):
+     - activities: 4-6 specific rituals with real names (e.g., Mahakaleshwar Jyotirlinga Darshan, Bhasma Aarti, Harsiddhi Temple, Kal Bhairav Temple, Ram Ghat Sandhya Kshipra Aarti).
+     - transportation_options: Auto-rickshaw / E-rickshaw with purpose and cost (e.g., "लगभग ₹400-₹500 (पूरे दिन के लिए)").
+     - accommodation: Use real hotel from the list above (e.g., "Hotel Ashoka Palace", rating "3.8/5", price "₹1,153").
+     - estimated_cost: e.g. "₹2,750 (आवास, भोजन, स्थानीय परिवहन, दान)".
+   - For Subsequent / Departure Day:
+     - activities: Morning temples (Mangalnath, Sandipani Ashram, Chintaman Ganesh), local market prasad shopping, hotel check-out, boarding return transit.
+     - transportation_options: Return bus/train or local auto to station with exact timings & fare.
+     - accommodation: "कोई नहीं (${destination} से प्रस्थान)" / "None (Return departure)", rating: "लागू नहीं" / "N/A", price: "लागू नहीं" / "N/A".
+     - estimated_cost: e.g. "₹1,100 (भोजन, स्थानीय परिवहन)".
+5. NOTES: Provide rich, authentic practical guidance for pilgrims visiting ${destination} (clothing etiquette, Bhasma Aarti pre-booking rules, best darshan queue timings, local sattvic food & hygiene, safety & medicines, local auto/e-rickshaw fares).
 
 Return ONLY this JSON structure exactly:
 {
   "itinerary": {
     "title": "string",
     "destination": "string",
-    "destination_history": "string (rich historical overview)",
-    "train_connectivity": [{ "train_name": "string", "frequency": "string", "travel_time": "string" }],
-    "recommended_hotels": [{ "name": "string", "type": "string", "price_range": "string" }],
     "departureDate": "string",
     "arrivalDate": "string",
     "numberOfPeople": number,
     "budget": "string",
     "style": "string",
     "total_estimated_cost": "string",
-    "notes": "string — practical tips for pilgrims visiting ${destination}",
+    "notes": "string",
     "daily_plan": [
       {
         "day": 1,
-        "activities": ["Specific real activity with actual place names"],
-        "estimated_cost": "string",
-        "accommodation": { "name": "EXACT hotel name from list above", "price": "real price from list", "rating": "real rating from list" },
-        "transportation_options": [{ "mode": "Train/Bus/Auto/E-Rickshaw", "details": "Real train name + number + timing if known", "price": "string" }]
+        "title": "Daily Immersion",
+        "subtitle": "2 Sacred Activities Planned",
+        "estimated_cost": "₹2,600 (बस किराया और यात्रा के दौरान का भोजन)",
+        "activities": [
+          "activity 1",
+          "activity 2"
+        ],
+        "accommodation": {
+          "name": "string",
+          "rating": "string",
+          "price": "string"
+        },
+        "transportation_options": [
+          {
+            "mode": "string",
+            "details": "string",
+            "price": "string"
+          }
+        ]
       }
     ]
   }
@@ -296,15 +359,16 @@ Return ONLY this JSON structure exactly:
 
     // ── Call Gemini ──────────────────────────────────────────────────────────
     let text;
+    const genConfig = { responseMimeType: "application/json" };
     try {
       const genAI = getGenAI();
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: genConfig });
       const result = await model.generateContent(prompt);
       text = result.response.text();
     } catch (primaryErr) {
       console.warn("Primary AI failed for /itinerary, retrying with backup. Error:", primaryErr.message);
       const genAIBackup = getGenAIBackup();
-      const modelBackup = genAIBackup.getGenerativeModel({ model: "gemini-2.5-flash" });
+      const modelBackup = genAIBackup.getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: genConfig });
       const resultBackup = await modelBackup.generateContent(prompt);
       text = resultBackup.response.text();
     }
@@ -312,10 +376,15 @@ Return ONLY this JSON structure exactly:
     // ── Parse JSON response ──────────────────────────────────────────────────
     let parsed;
     try {
-      const clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      let clean = text.trim();
+      const firstBrace = clean.indexOf("{");
+      const lastBrace = clean.lastIndexOf("}");
+      if (firstBrace !== -1 && lastBrace !== -1) {
+        clean = clean.substring(firstBrace, lastBrace + 1);
+      }
       parsed = JSON.parse(clean);
     } catch (parseErr) {
-      console.error("JSON parse error:", parseErr.message, "\nRaw:", text.slice(0, 300));
+      console.error("JSON parse error:", parseErr.message, "\nRaw:", text ? text.slice(0, 300) : "empty");
       return res.status(500).json({ error: "AI returned invalid JSON. Please try again." });
     }
 
