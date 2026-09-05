@@ -65,9 +65,8 @@ const FamilyMode = () => {
   const liveMarkerRef = useRef(null);
   const guardianMarkerRef = useRef(null);
   const trailPointsRef = useRef([]);
-  const mapStyleReadyRef = useRef(false); // true after style.load fires
-  const pendingTrailRef = useRef(null);   // trail buffered before style is ready
   const guardianPosRef = useRef(null);    // always-current guardian GPS (no stale state)
+  const guardianAccuracyRef = useRef(null); // guardian GPS accuracy in metres
 
   /* state */
   const [role, setRoleState] = useState(localStorage.getItem('family_role') || (location.state?.autoSelectUser ? 'guardian' : null));
@@ -115,12 +114,16 @@ const FamilyMode = () => {
   const [guardianPos, setGuardianPos] = useState(null);
   const [sosActive, setSosActive] = useState(false);
 
-  // helper: compute live distance using always-current ref
+  // helper: compute live distance — returns object with value and accuracy warning
   const getLiveDistance = () => {
     const gPos = guardianPosRef.current;
     if (!gPos || !protégePos) return null;
     const d = getDistance(gPos[0], gPos[1], protégePos[0], protégePos[1]);
-    return d < 1000 ? `${Math.round(d)} m away` : `${(d / 1000).toFixed(2)} km away`;
+    const acc = guardianAccuracyRef.current || 0;
+    const distText = d < 1000 ? `${Math.round(d)} m` : `${(d / 1000).toFixed(2)} km`;
+    // If GPS accuracy is larger than the distance itself, it's unreliable
+    const unreliable = acc > 80 || d < acc;
+    return { distText, acc: Math.round(acc), unreliable };
   };
 
   /* ─── Data Fetching ─── */
@@ -337,8 +340,7 @@ const FamilyMode = () => {
   const initMap = useCallback(() => {
     if (mapInstance.current || !mapRef.current) return;
 
-    mapStyleReadyRef.current = false;
-    
+
     const map = new maplibregl.Map({
       container: mapRef.current,
       style: mapTheme === 'light' 
@@ -352,32 +354,20 @@ const FamilyMode = () => {
     map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'bottom-right');
     mapInstance.current = map;
 
-    // style.load fires on init AND on setStyle() (theme change)
+    // style.load fires on init AND after setStyle (theme switch)
     map.on('style.load', () => {
-      mapStyleReadyRef.current = true;
-
-      // Flush any pending trail draw that was deferred
-      const pending = pendingTrailRef.current;
-      if (pending && pending.length > 0) {
-        drawTrail(pending);
-        pendingTrailRef.current = null;
-      } else if (trailPointsRef.current.length > 0) {
+      // Restore trail if we have points
+      if (trailPointsRef.current.length > 0) {
         drawTrail(trailPointsRef.current);
       }
-
-      // Restore suggested route
-      if (role === 'pilgrim') {
-        if (srcPos && destPos) {
-          drawRoute([srcPos.lat, srcPos.lng], [destPos.lat, destPos.lng], '#f97316', 6, false, 'suggested');
-        }
-      } else {
-        if (activeTrackingSesssion && activeTrackingSesssion.src && activeTrackingSesssion.dest) {
-          const { src, dest } = activeTrackingSesssion;
-          drawRoute([src.lat, src.lng], [dest.lat, dest.lng], '#f97316', 6, false, 'suggested');
-        }
+      // Restore planned route
+      if (role === 'pilgrim' && srcPos && destPos) {
+        drawRoute([srcPos.lat, srcPos.lng], [destPos.lat, destPos.lng], '#f97316', 6, false, 'suggested');
       }
-
-      // Restore rescue route
+      if (role === 'guardian' && activeTrackingSesssion?.src && activeTrackingSesssion?.dest) {
+        const { src, dest } = activeTrackingSesssion;
+        drawRoute([src.lat, src.lng], [dest.lat, dest.lng], '#f97316', 6, false, 'suggested');
+      }
       if (role === 'guardian' && sosActive && guardianPosRef.current && protégePos) {
         drawRoute(guardianPosRef.current, protégePos, '#ef4444', 8, false, 'rescue');
       }
@@ -450,8 +440,9 @@ const FamilyMode = () => {
           guardianWatchRef.current = navigator.geolocation.watchPosition(
             (p) => {
               const pos = [p.coords.latitude, p.coords.longitude];
-              guardianPosRef.current = pos;   // always-fresh ref
-              setGuardianPos([...pos]);        // trigger re-render for display
+              guardianPosRef.current = pos;       // always-fresh ref
+              guardianAccuracyRef.current = p.coords.accuracy;
+              setGuardianPos([...pos]);            // trigger re-render
               addMarker(pos, '#2563eb', '🛡️', 'guardian');
             },
             (err) => console.warn('Guardian GPS:', err.message),
@@ -474,14 +465,7 @@ const FamilyMode = () => {
         mapInstance.current.remove(); 
         mapInstance.current = null; 
       }
-      mapStyleReadyRef.current = false;
-      // cleanup markers
-      srcMarkerRef.current = null;
-      destMarkerRef.current = null;
-      liveMarkerRef.current = null;
-      guardianMarkerRef.current = null;
       trailPointsRef.current = [];
-      pendingTrailRef.current = null;
       if (window._tempMarker) {
         window._tempMarker.remove();
         window._tempMarker = null;
@@ -697,12 +681,12 @@ const FamilyMode = () => {
     }
   };
 
-  const drawTrail = useCallback((points) => {
-    if (!points || points.length < 1) return;
+  const drawTrail = (points) => {
+    if (!points || points.length < 1 || !mapInstance.current) return;
 
-    // Buffer the draw if map style isn't loaded yet
-    if (!mapInstance.current || !mapStyleReadyRef.current) {
-      pendingTrailRef.current = points;
+    // If style is not loaded yet, retry after a short delay
+    if (!mapInstance.current.isStyleLoaded()) {
+      setTimeout(() => drawTrail(points), 300);
       return;
     }
 
@@ -721,29 +705,30 @@ const FamilyMode = () => {
 
     try {
       if (mapInstance.current.getSource('trail-source')) {
+        // Source exists — just update the data
         mapInstance.current.getSource('trail-source').setData(geojsonData);
       } else {
+        // Create source and both layers fresh
         mapInstance.current.addSource('trail-source', { type: 'geojson', data: geojsonData });
 
-        if (!mapInstance.current.getLayer('trail-glow-layer')) {
-          mapInstance.current.addLayer({
-            id: 'trail-glow-layer', type: 'line', source: 'trail-source',
-            layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': '#60a5fa', 'line-width': 10, 'line-opacity': 0.4 }
-          });
-        }
-        if (!mapInstance.current.getLayer('trail-layer')) {
-          mapInstance.current.addLayer({
-            id: 'trail-layer', type: 'line', source: 'trail-source',
-            layout: { 'line-join': 'round', 'line-cap': 'round' },
-            paint: { 'line-color': '#2563eb', 'line-width': 5, 'line-opacity': 0.95 }
-          });
-        }
+        mapInstance.current.addLayer({
+          id: 'trail-glow-layer', type: 'line', source: 'trail-source',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#60a5fa', 'line-width': 12, 'line-opacity': 0.4 }
+        });
+
+        mapInstance.current.addLayer({
+          id: 'trail-layer', type: 'line', source: 'trail-source',
+          layout: { 'line-join': 'round', 'line-cap': 'round' },
+          paint: { 'line-color': '#2563eb', 'line-width': 5, 'line-opacity': 0.95 }
+        });
       }
     } catch (e) {
       console.warn('drawTrail error:', e.message);
+      // On error (e.g. source already exists from stale state), retry
+      setTimeout(() => drawTrail(points), 400);
     }
-  }, []);
+  };
 
   /* ─── Pilgrim Actions ─── */
   const geocode = async (query) => {
@@ -971,12 +956,8 @@ const FamilyMode = () => {
     const nextTheme = mapTheme === 'light' ? 'dark' : 'light';
     setMapTheme(nextTheme);
     if (mapInstance.current) {
-      mapStyleReadyRef.current = false; // will re-arm on style.load
-      // Buffer current trail so style.load can restore it
-      if (trailPointsRef.current.length > 0) {
-        pendingTrailRef.current = trailPointsRef.current;
-      }
-      const styleUrl = nextTheme === 'light' 
+      // setStyle wipes all layers — style.load callback will restore trail+routes
+      const styleUrl = nextTheme === 'light'
         ? 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json'
         : 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
       mapInstance.current.setStyle(styleUrl);
@@ -1394,20 +1375,30 @@ const FamilyMode = () => {
                       )}
                     </div>
                     
-                    {/* Distance between Guardian and Traveler — uses guardianPosRef for freshness */}
-                    {role === 'guardian' && protégePos && (
-                      <div className="bg-blue-950/60 p-3 rounded-2xl border border-blue-500/30 mb-3 flex items-center justify-between">
-                        <div>
+                    {/* Distance between Guardian and Traveler */}
+                    {role === 'guardian' && protégePos && (() => {
+                      const liveDist = getLiveDistance();
+                      if (!liveDist) return (
+                        <div className="bg-blue-950/60 p-3 rounded-2xl border border-blue-500/30 mb-3">
                           <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-0.5">Live Distance to You</p>
-                          <p className="text-base font-black text-white">
-                            {getLiveDistance() || (guardianPos ? 'Calculating…' : '📡 Getting your GPS…')}
-                          </p>
+                          <p className="text-sm font-black text-slate-400">📡 Getting your GPS…</p>
                         </div>
-                        <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs">
-                          🛡️
+                      );
+                      return (
+                        <div className={`p-3 rounded-2xl border mb-3 ${liveDist.unreliable ? 'bg-amber-950/60 border-amber-500/30' : 'bg-blue-950/60 border-blue-500/30'}`}>
+                          <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-0.5">Live Distance to You</p>
+                          <p className="text-base font-black text-white">{liveDist.distText} away</p>
+                          {liveDist.unreliable && (
+                            <p className="text-[8px] text-amber-400 font-bold mt-0.5">
+                              ⚠️ GPS ±{liveDist.acc}m accuracy — indoors signal is imprecise
+                            </p>
+                          )}
+                          {!liveDist.unreliable && (
+                            <p className="text-[8px] text-emerald-400 font-bold mt-0.5">✅ GPS ±{liveDist.acc}m — good signal</p>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     <div className="grid grid-cols-2 gap-3">
                       {/* Distance */}
