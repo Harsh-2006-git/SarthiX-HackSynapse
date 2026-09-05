@@ -58,21 +58,42 @@ export const initSocket = (server) => {
             const { lat, lng, speed, accuracy, tripStats } = data;
             if (!lat || !lng) return;
 
+            const payload = { 
+                userId: Number(userId), 
+                lat: parseFloat(lat), 
+                lng: parseFloat(lng), 
+                speed: parseFloat(speed) || 0, 
+                accuracy: parseFloat(accuracy) || 0, 
+                tripStats, 
+                timestamp: new Date() 
+            };
+
+            // 1. Update in-memory session current position & direct instant emit to assigned guardian
+            const session = activeSessions.get(Number(userId));
+            if (session) {
+                session.currentPos = { lat: payload.lat, lng: payload.lng };
+                session.lastPing = payload.timestamp;
+                if (tripStats) session.tripStats = tripStats;
+                if (session.guardianId) {
+                    io.to(`user_${session.guardianId}`).emit('receiveLocation', payload);
+                }
+            }
+
             try {
-                // 1. Find all approved guardians FIRST
+                // 2. Broadcast to any other approved guardians in parallel
                 const mappings = await GuardianMapping.findAll({
                     where: { user_id: userId, is_approved: true },
                     attributes: ['guardian_id']
                 });
 
-                // 2. IMMEDIATELY broadcast to each guardian (zero delay)
-                const payload = { userId, lat, lng, speed, accuracy, tripStats, timestamp: new Date() };
                 mappings.forEach(mapping => {
-                    io.to(`user_${mapping.guardian_id}`).emit('receiveLocation', payload);
+                    if (!session || mapping.guardian_id !== session.guardianId) {
+                        io.to(`user_${mapping.guardian_id}`).emit('receiveLocation', payload);
+                    }
                 });
 
-                // 3. Save to DB async (non-blocking — don't make guardian wait for this)
-                LocationLog.create({ user_id: userId, lat, lng }).catch(e => 
+                // 3. Save to DB async (non-blocking)
+                LocationLog.create({ user_id: userId, lat: payload.lat, lng: payload.lng }).catch(e => 
                     console.error('Location log save error:', e.message)
                 );
 

@@ -499,8 +499,28 @@ const FamilyMode = () => {
     attempt(retries);
   };
 
-  const addMarker = (pos, color, emoji, type) => {
+  const normalizeCoord = (c) => {
+    if (!c) return null;
+    if (Array.isArray(c)) {
+      if (c.length >= 2 && !isNaN(c[0]) && !isNaN(c[1])) {
+        return [parseFloat(c[0]), parseFloat(c[1])];
+      }
+      return null;
+    }
+    if (typeof c === 'object') {
+      const lat = c.lat !== undefined ? c.lat : c.latitude;
+      const lng = c.lng !== undefined ? c.lng : (c.lon !== undefined ? c.lon : c.longitude);
+      if (lat !== undefined && lng !== undefined && !isNaN(lat) && !isNaN(lng)) {
+        return [parseFloat(lat), parseFloat(lng)];
+      }
+    }
+    return null;
+  };
+
+  const addMarker = (posInput, color, emoji, type) => {
     if (!mapInstance.current) return null;
+    const pos = normalizeCoord(posInput);
+    if (!pos) return null;
     
     let markerRef = null;
     if (type === 'src') markerRef = srcMarkerRef;
@@ -544,6 +564,13 @@ const FamilyMode = () => {
 
   const drawRoute = async (from, to, color, weight, fit, tag) => {
     if (!mapInstance.current) return;
+
+    const f = normalizeCoord(from);
+    const t = normalizeCoord(to);
+    if (!f || !t) {
+      console.warn('drawRoute skipped: invalid from/to coordinates', from, to);
+      return;
+    }
     
     const sourceId = `${tag}-route-source`;
     const layerId = `${tag}-route-layer`;
@@ -553,7 +580,7 @@ const FamilyMode = () => {
     if (mapInstance.current.getSource(sourceId)) mapInstance.current.removeSource(sourceId);
 
     try {
-      const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?geometries=geojson&overview=full`;
+      const url = `https://router.project-osrm.org/route/v1/driving/${f[1]},${f[0]};${t[1]},${t[0]}?geometries=geojson&overview=full`;
       const res = await fetch(url);
       const data = await res.json();
       
@@ -1310,24 +1337,42 @@ const FamilyMode = () => {
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Distance between Guardian and Devotee */}
+                    {role === 'guardian' && guardianPos && protégePos && (
+                      <div className="bg-blue-950/60 p-3 rounded-2xl border border-blue-500/30 mb-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-[9px] font-black text-blue-300 uppercase tracking-widest mb-0.5">Live Distance to You</p>
+                          <p className="text-base font-black text-white">
+                            {(() => {
+                              const d = getDistance(guardianPos[0], guardianPos[1], protégePos[0], protégePos[1]);
+                              return d < 1000 ? `${Math.round(d)} Meters away` : `${(d / 1000).toFixed(2)} KM away`;
+                            })()}
+                          </p>
+                        </div>
+                        <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs">
+                          🛡️
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
                       {/* Distance */}
                       <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">D-Remaining</p>
-                        <p className="text-lg font-black text-white tracking-tight">
+                        <p className="text-base font-black text-white tracking-tight">
                           {(tripStats.distance / 1000).toFixed(1)} <span className="text-xs text-slate-500">KM</span>
                         </p>
                       </div>
                       {/* ETA */}
                       <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
                         <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Time to Dest</p>
-                        <p className="text-lg font-black text-emerald-400 tracking-tight">
+                        <p className="text-base font-black text-emerald-400 tracking-tight">
                           {tripStats.eta} <span className="text-xs text-emerald-600">MINS</span>
                         </p>
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+                    <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
                       <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Destination ETA</p>
                       <p className="text-[9px] font-black text-slate-300">
                         {new Date(Date.now() + tripStats.eta * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
