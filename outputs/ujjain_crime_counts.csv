@@ -1,0 +1,66 @@
+region,crime_category,crime_metric,reported_crime_count
+Ujjain,"Rape (Sec 64-68,70-71 BNS/Sec.376 IPC)",Rape (Total a+b),87
+Ujjain,"Rape (Sec 64-68,70-71 BNS/Sec.376 IPC)",a) Women (18 Years and Above),87
+Ujjain,"Rape (Sec 64-68,70-71 BNS/Sec.376 IPC)",b) Girls (Below 18 Years),0
+Ujjain,Sexual Intercourse by employing deceitful means (Sec 69 BNS),Sexual Intercourse by employing deceitful means (Sec 69 BNS),3
+Ujjain,"Murder with Rape/Gang Rape (Sec 103 r/w Sec 64-68,70-71 BNS/ Sec 302 r/w 376 IPC)","Murder with Rape/Gang Rape (Sec 103 r/w Sec 64-68,70-71 BNS/ Sec 302 r/w 376 IPC)",0
+Ujjain,Attempt to commit Rape (Sec 64 r/w 62 BNS/Sec.376 r/w 511 IPC),Attempt to commit Rape (Total a+b),1
+Ujjain,Attempt to commit Rape (Sec 64 r/w 62 BNS/Sec.376 r/w 511 IPC),a) Women (18 Years and Above),1
+Ujjain,Attempt to commit Rape (Sec 64 r/w 62 BNS/Sec.376 r/w 511 IPC),b) Girls (Below 18 Years),0
+Ujjain,Assault on Women with intent to outrage her Modesty (Sec 74 BNS/Sec.354 IPC),Assault on Women with intent to outrage her Modesty (Total a+b),55
+Ujjain,Assault on Women with intent to outrage her Modesty (Sec 74 BNS/Sec.354 IPC),a) Women (18 Years and Above),55
+Ujjain,Assault on Women with intent to outrage her Modesty (Sec 74 BNS/Sec.354 IPC),b) Girls (Below 18 Years),0
+Ujjain,Sexual Harassment (Sec. 75 BNS/Sec.354A IPC),Sexual Harassment (Total a+b),69
+Ujjain,Sexual Harassment (Sec. 75 BNS/Sec.354A IPC),a) Women (18 Years and Above),69
+Ujjain,Sexual Harassment (Sec. 75 BNS/Sec.354A IPC),b) Girls (Below 18 Years),0
+Ujjain,Assault or Use of Criminal Force with intent to disrobe (Sec. 76 BNS/Sec. 354B IPC),Assault or Use of Criminal Force with intent to disrobe (Total a+b),4
+Ujjain,Assault or Use of Criminal Force with intent to disrobe (Sec. 76 BNS/Sec. 354B IPC),a) Women (18 Years and Above),4
+Ujjain,Assault or Use of Criminal Force with intent to disrobe (Sec. 76 BNS/Sec. 354B IPC),b) Girls (Below 18 Years),0
+Ujjain,Voyeurism (Sec. 77 BNS/Sec. 354C IPC),Voyeurism (Total a+b),11
+Ujjain,Voyeurism (Sec. 77 BNS/Sec. 354C IPC),a) Women (18 Years and Above),11
+Ujjain,Voyeurism (Sec. 77 BNS/Sec. 354C IPC),b) Girls (Below 18 Years),0
+Ujjain,Stalking (Sec. 78 BNS/Sec. 354D IPC),Stalking (Total a+b),39
+Ujjain,Stalking (Sec. 78 BNS/Sec. 354D IPC),a) Women (18 Years and Above),18
+Ujjain,Stalking (Sec. 78 BNS/Sec. 354D IPC),b) Girls (Below 18 Years),1
+Ujjain,Insult to the Modesty of Women (Sec 79 BNS/Sec 509 IPC),Insult to the Modesty of Women (Total a+b),11
+Ujjain,Insult to the Modesty of Women (Sec 79 BNS/Sec 509 IPC),a) Women (18 Years and Above),11
+Ujjain,Insult to the Modesty of Women (Sec 79 BNS/Sec 509 IPC),b) Girls (Below 18 Years),0
+Ujjain,Dowry Deaths (Sec 80 BNS /Sec 304B IPC),Dowry Deaths (Sec 80 BNS /Sec 304B IPC),13
+Ujjain,Cruelty by Husband or his relatives (Sec 85 BNS/Sec 498-A IPC),Cruelty by Husband or his relatives (Sec 85 BNS/Sec 498-A IPC),218
+Ujjain,Kidnapping or abducting or inducing Women to compel her for marriage (Sec. 87 BNS/Sec. 366 IPC),Kidnapping or abducting or inducing Women to compel her for marriage (Total a+b),10
+Ujjain,Kidnapping or abducting or inducing Women to compel her for marriage (Sec. 87 BNS/Sec. 366 IPC),a) Women (18 Years and Above),6
+Ujjain,Kidnapping or abducting or inducing Women to compel her for marriage (Sec. 87 BNS/Sec. 366 IPC),b) Girls (Below 18 Years,4
+Ujjain,Miscarriage (Sec 88 to 90 BNS/Sec 313 and 314 IPC),Miscarriage (Sec 88 to 90 BNS/Sec 313 and 314 IPC),0
+Ujjain,Procuration of Minor Girls (Sec 96 BNS//Sec 366A IPC),Procuration of Minor Girls (Sec 96 BNS//Sec 366A IPC),0
+Ujjain,Selling of Girls for Prostitution (Sec 98 BNS/Sec 372 IPC),Selling of Girls for Prostitution (Sec 98 BNS/Sec 372 IPC),0
+Ujjain,Buying of Girls for Prostitution (Sec 99 BNS/Sec 373 IPC),Buying of Girls for Prostitution (Sec 99 BNS/Sec 373 IPC),0
+Ujjain,Abetment to suicides of women (u/s 107/108 BNS/Sec 305/306 IPC),Abetment to suicides of women (u/s 107/108 BNS/Sec 305/306 IPC),10
+Ujjain,Acid Attack (Sec 124(1) BNS/Sec 326A IPC),Acid Attack (Sec 124(1) BNS/Sec 326A IPC),0
+Ujjain,Attempt to Acid Attack (Sec 124(2) BNS/Sec 326B IPC),Attempt to Acid Attack (Sec 124(2) BNS/Sec 326B IPC),0
+Ujjain,Kidnapping & Abduction of Women,Kidnapping & Abduction of Women (Total a+b+c+d+e),217
+Ujjain,Kidnapping & Abduction of Women,a) K & A (Sec.137 & 138 BNS/Sec. 363 IPC),216
+Ujjain,Kidnapping & Abduction of Women,b) K & A in order to Murder (Sec.140(1) BNS/Sec. 364 IPC),0
+Ujjain,Kidnapping & Abduction of Women,c) Kidnapping for Ransom (Sec. 140(2) BNS/Sec. 364A IPC),0
+Ujjain,Kidnapping & Abduction of Women,d) Importation of Girls from Foreign Country (Sec. 141 BNS/Sec. 366-B IPC),0
+Ujjain,Kidnapping & Abduction of Women,"e) K&A of Women – Others (Sec. 140(3), 140(4),142 BNS/Sec. 365, 367-368 IPC)",1
+Ujjain,Total IPC/BNS Crimes against Women,Total IPC/BNS Crimes against Women,748
+Ujjain,"Dowry Prohibition Act, 1961","Dowry Prohibition Act, 1961",0
+Ujjain,Immoral Traffic (Prevention) Act 1956 (Women Victim Cases only),Immoral Traffic (Prevention) Act (Total a+b+c+d+e),3
+Ujjain,Immoral Traffic (Prevention) Act 1956 (Women Victim Cases only),"a) Procuring, inducing Children for the sake of prostitution (Sec. 5)",1
+Ujjain,Immoral Traffic (Prevention) Act 1956 (Women Victim Cases only),b) Detaining a person in premises where prostitution is carried on(Sec. 6),0
+Ujjain,Immoral Traffic (Prevention) Act 1956 (Women Victim Cases only),c) Prostitution in or in the vicinity of public places (Sec. 7),2
+Ujjain,Immoral Traffic (Prevention) Act 1956 (Women Victim Cases only),d) Seducing or soliciting for purpose of prostitution (Sec. 8),0
+Ujjain,Immoral Traffic (Prevention) Act 1956 (Women Victim Cases only),e) Other Sections under ITP Act,0
+Ujjain,"Protection of Women from Domestic Violence Act, 2005","Protection of Women from Domestic Violence Act, 2005",0
+Ujjain,Cyber Crimes/Information Technology Act (Women Centric Crimes Only),Cyber Crimes/Information Technology Act (Total a+b),0
+Ujjain,Cyber Crimes/Information Technology Act (Women Centric Crimes Only),a) Publishing or Transmitting of Sexually Explicit Material (Sec 67A/67B(Girls) IT Act),0
+Ujjain,Cyber Crimes/Information Technology Act (Women Centric Crimes Only),b) Other Women Centric Cyber Crimes (ex: Blackmailing/Defamation/Morphing/Fake Profile),0
+Ujjain,Protection of Children from Sexual Violence Act (Girl Child Victims Only),POCSO Act (Total a+b+c+d+e),129
+Ujjain,Protection of Children from Sexual Violence Act (Girl Child Victims Only),a) POCSO Act Sec. 4 & 6,102
+Ujjain,Protection of Children from Sexual Violence Act (Girl Child Victims Only),b) POCSO Act Sec. 8 & 10,4
+Ujjain,Protection of Children from Sexual Violence Act (Girl Child Victims Only),c) POCSO Act Sec. 12,23
+Ujjain,Protection of Children from Sexual Violence Act (Girl Child Victims Only),d) POCSO Act Sec. 14 & 15,0
+Ujjain,Protection of Children from Sexual Violence Act (Girl Child Victims Only),e) POCSO Act Sec. 17-22,0
+Ujjain,"Indecent Representation of Women (Prohibition) Act, 1986","Indecent Representation of Women (Prohibition) Act, 1986",0
+Ujjain,Total SLL Crimes against Women,Total SLL Crimes against Women,132
+Ujjain,Total Crime against Women (IPC/BNS + SLL Crimes),Total Crime against Women (IPC/BNS + SLL Crimes),880

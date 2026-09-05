@@ -1,0 +1,58 @@
+# Root .gitignore for Smart-Pilgrims-Assistant-App
+
+# Dependencies
+node_modules/
+**/node_modules/
+**/RAG/
+
+# Build/Dist outputs
+dist/
+dist-ssr/
+build/
+.next/
+out/
+**/dist/
+**/build/
+**/.next/
+
+# Environment Files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+**/*.log
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Python
+__pycache__/
+venv/
+.venv/
+*.py[cod]
+*$py.class
+**/venv/
+**/.venv/
+**/__pycache__/
+
+# Project Specific
+uploads/
+**/uploads/
+AI_Core/uploads/
+*.pem
+Backend/ca.pem
+
+# OS related
+Thumbs.db
+ehthumbs.db
+[Dd]esktop.ini

@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Route Map | Divya Yatra</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    :root {
+      --primary: #ff7a00;
+      --secondary: #ff9800;
+      --accent: #ffb84d;
+    }
+
+    #map {
+      height: 550px;
+      width: 100%;
+      position: relative;
+      z-index: 1;
+      border-radius: 1rem;
+    }
+
+    .leaflet-popup-content-wrapper {
+      border-radius: 12px;
+      box-shadow: 0 8px 25px rgba(255, 122, 0, 0.2);
+      background: white;
+      color: #333;
+    }
+
+    .custom-btn {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .custom-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .custom-btn:active {
+      transform: translateY(0);
+    }
+
+    .animate-fade-in-up {
+      animation: fadeInUp 0.6s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #ea580c, #dc2626);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+  </style>
+</head>
+
+<body class="bg-[#fcfcfc] text-slate-800">
+  <!-- Modern Header -->
+  <header class="fixed top-0 left-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-gray-100 py-4">
+    <div class="max-w-7xl mx-auto px-6 flex justify-between items-center">
+      <a href="/" class="flex items-center gap-2 group">
+        <div
+          class="h-10 w-10 rounded-full bg-orange-600 flex items-center justify-center text-white text-xl font-bold shadow-lg group-hover:scale-110 transition-transform">
+          🕉</div>
+        <span class="text-xl font-bold tracking-tight text-slate-800">Divya<span
+            class="text-orange-600">Yatra</span></span>
+      </a>
+      <nav class="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500 uppercase tracking-widest">
+        <a href="/" class="hover:text-orange-600 transition-colors">Home</a>
+        <a href="/ticket" class="hover:text-orange-600 transition-colors">Tickets</a>
+        <a href="/dencity" class="hover:text-orange-600 transition-colors">Density</a>
+        <a href="/live-darshan" class="hover:text-orange-600 transition-colors">Darshan</a>
+      </nav>
+      <button onclick="window.location.href='/ticket'"
+        class="bg-slate-900 hover:bg-orange-600 text-white px-6 py-2 rounded-xl font-bold text-sm transition-all shadow-md active:scale-95">
+        Book Tickets
+      </button>
+    </div>
+  </header>
+
+  <!-- Small Hero Section -->
+  <div class="pt-32 pb-12 px-6 text-center bg-white border-b border-gray-100">
+    <div class="max-w-4xl mx-auto">
+      <div
+        class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-100 text-orange-600 mb-4 animate-fade-in-up">
+        <i data-lucide="map-pin" class="w-4 h-4"></i>
+        <span class="text-[10px] font-bold uppercase tracking-wider">Sacred Route Navigator</span>
+      </div>
+      <h1 class="text-3xl md:text-5xl font-black mb-4 leading-tight text-gray-900">
+        Ujjain Temple <span class="text-orange-600">Route Map</span>
+      </h1>
+      <p class="text-lg text-gray-600 max-w-2xl mx-auto mb-2 leading-relaxed font-medium">
+        Discover sacred pathways to ancient temples with real-time population density insights and guidance.
+      </p>
+    </div>
+  </div>
+
+  <div class="h-px bg-gradient-to-r from-transparent via-orange-200 to-transparent w-full mb-12"></div>
+
+  <div class="max-w-7xl mx-auto px-6 pb-24">
+    <div class="grid lg:grid-cols-12 gap-10">
+      <!-- Sidebar Controls -->
+      <div class="lg:col-span-4 space-y-6">
+        <div
+          class="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-gray-100 relative overflow-hidden group">
+          <div
+            class="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 transition-all group-hover:bg-orange-500/10">
+          </div>
+
+          <h3 class="text-xl font-black mb-6 text-slate-800 flex items-center gap-3">
+            <i data-lucide="compass" class="text-orange-600"></i>
+            Navigation
+          </h3>
+
+          <div class="space-y-3 mb-8">
+            <button
+              class="w-full bg-slate-900 text-white p-4 rounded-2xl font-bold text-sm flex items-center justify-between group hover:bg-orange-600 transition-all custom-btn"
+              id="getLocationBtn">
+              Detect My Location
+              <i data-lucide="locate-fixed" class="w-4 h-4"></i>
+            </button>
+            <button
+              class="w-full bg-white border-2 border-slate-100 text-slate-600 p-4 rounded-2xl font-bold text-sm flex items-center justify-between hover:border-orange-500 hover:text-orange-600 transition-all custom-btn"
+              id="showAllTemplesBtn">
+              Show All Temples
+              <i data-lucide="map" class="w-4 h-4"></i>
+            </button>
+            <button
+              class="w-full bg-rose-50 text-rose-600 p-4 rounded-2xl font-bold text-sm flex items-center justify-between hover:bg-rose-100 transition-all custom-btn"
+              id="clearRoutesBtn">
+              Clear Active Routes
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <h4 class="text-xs font-black uppercase tracking-[0.2em] text-orange-500 mb-4 px-2">Manual Search</h4>
+          <div class="space-y-4">
+            <div class="relative">
+              <input type="text" id="locationInput"
+                class="w-full p-4 pl-12 bg-slate-50 border-2 border-transparent rounded-2xl focus:border-orange-500 focus:bg-white outline-none transition-all font-bold text-sm"
+                placeholder="Enter starting point..." />
+              <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4"></i>
+            </div>
+            <button
+              class="w-full bg-orange-600 text-white p-4 rounded-2xl font-bold text-sm shadow-lg shadow-orange-600/20 active:scale-95 transition-all"
+              onclick="searchLocation()">
+              Search Position
+            </button>
+          </div>
+        </div>
+
+        <div class="bg-slate-900 p-8 rounded-[2rem] shadow-2xl text-white relative overflow-hidden">
+          <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-orange-600/20 rounded-full blur-3xl"></div>
+          <h4 class="text-xs font-black uppercase tracking-[0.2em] text-orange-500 mb-6 px-2 relative z-10">Regional
+            Gateways</h4>
+          <div class="grid grid-cols-1 gap-3 relative z-10 mb-8">
+            <button
+              class="flex items-center gap-3 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group font-bold text-sm"
+              onclick="setLocationToIndore()">
+              <span class="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center text-blue-500">I</span>
+              Indore City
+            </button>
+            <button
+              class="flex items-center gap-3 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group font-bold text-sm"
+              onclick="setLocationToBhopal()">
+              <span class="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center text-green-500">B</span>
+              Bhopal City
+            </button>
+          </div>
+
+          <h4 class="text-xs font-black uppercase tracking-[0.2em] text-orange-500 mb-6 px-2 relative z-10">Ujjain
+            Landmarks</h4>
+          <div class="grid grid-cols-1 gap-3 relative z-10">
+            <button
+              class="flex items-center gap-3 p-4 bg-orange-600/20 border border-orange-500/30 rounded-2xl hover:bg-orange-600/40 transition-all group font-black text-sm"
+              onclick="setLocationToUjjain()">
+              <span
+                class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center text-white shadow-lg">🔱</span>
+              Mahakal Mandir
+            </button>
+            <button
+              class="flex items-center gap-3 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group font-bold text-sm"
+              onclick="setLocationToUjjainStation()">
+              <span class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white">🚆</span>
+              Railway Station
+            </button>
+            <button
+              class="flex items-center gap-3 p-4 bg-white/5 rounded-2xl hover:bg-white/10 transition-all group font-bold text-sm"
+              onclick="setManualLocation(23.1694, 75.7878, 'Harsiddhi Mandir Area')">
+              <span class="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white">🪔</span>
+              Harsiddhi ShaktiPeeth
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Map & Info -->
+      <div class="lg:col-span-8 space-y-8">
+        <div class="bg-white rounded-[2.5rem] shadow-2xl p-4 md:p-8 border border-gray-100">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+              <h3 class="text-2xl font-black text-slate-800">Temple Route Interactive</h3>
+              <p class="text-slate-500 font-medium text-sm">Real-time vector paths & density monitoring</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <button
+                class="bg-orange-50 text-orange-600 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border border-orange-100 flex items-center gap-2"
+                id="toggleDensityBtn">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+                Density Filter
+              </button>
+              <div class="flex items-center gap-2 bg-green-50 px-3 py-2 rounded-xl border border-green-100">
+                <span class="relative flex h-2 w-2">
+                  <span
+                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                </span>
+                <span class="text-[10px] font-black text-green-700 uppercase tracking-widest">Live GPS</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="map" class="shadow-inner ring-8 ring-slate-50 mb-8"></div>
+
+          <div
+            class="bg-slate-50 p-6 rounded-2xl flex items-center gap-4 text-slate-600 font-bold text-sm border border-slate-100"
+            id="status">
+            <i data-lucide="info" class="text-orange-600"></i>
+            Set your location via GPS or search to start finding spiritual routes.
+          </div>
+        </div>
+
+        <div class="bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 relative overflow-hidden">
+          <div
+            class="absolute top-0 right-0 w-64 h-64 bg-orange-500/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2">
+          </div>
+          <h3 class="text-2xl font-black mb-10 text-slate-800 flex items-center gap-4 relative z-10">
+            <span
+              class="w-12 h-12 rounded-2xl bg-orange-600 flex items-center justify-center text-white text-2xl shadow-lg shadow-orange-600/30">🔱</span>
+            Temple Pilgrimage Directory
+          </h3>
+          <div class="grid md:grid-cols-2 gap-6 relative z-10" id="templeButtons"></div>
+          <p class="mt-8 text-xs text-slate-400 font-bold uppercase tracking-widest text-center">Click any temple to
+            visualize the divine path</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sacred Temples Detail Grid -->
+    <div class="mt-24">
+      <div class="flex flex-col items-center mb-16 text-center">
+        <span class="text-[11px] font-black text-orange-600 uppercase tracking-[0.3em] mb-4">Ujjain Darshan</span>
+        <h2 class="text-3xl md:text-5xl font-black text-slate-900 leading-tight">Sacred Temples <br /><span
+            class="text-orange-600 italic">Journey Guide</span></h2>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8" id="templeGrid"></div>
+    </div>
+  </div>
+
+  <!-- Premium Footer -->
+  <footer class="bg-[#050505] text-white pt-24 pb-12 px-6 relative overflow-hidden border-t border-white/5">
+    <div
+      class="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-orange-500/50 to-transparent">
+    </div>
+    <div class="max-w-7xl mx-auto relative z-10">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-12 mb-16">
+        <div class="md:col-span-6 space-y-6">
+          <div class="flex items-center gap-3 text-3xl font-black italic tracking-tighter">
+            <span className="text-orange-500">DIVYA</span>
+            <span className="text-white">YATRA</span>
+          </div>
+          <p class="text-gray-400 text-sm max-w-sm leading-relaxed font-medium">
+            Elevating your spiritual journey to the holy city of Ujjain with peace, devotion, and modern technology.
+          </p>
+          <div class="flex gap-4">
+            <div
+              class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-orange-600 transition-all border border-white/5">
+              𝕏</div>
+            <div
+              class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-orange-600 transition-all border border-white/5">
+              IG</div>
+            <div
+              class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center hover:bg-orange-600 transition-all border border-white/5">
+              YT</div>
+          </div>
+        </div>
+        <div class="md:col-span-3 space-y-6">
+          <h3 class="text-xs font-black uppercase tracking-[0.2em] text-orange-500">Services</h3>
+          <ul class="space-y-4 text-xs font-bold text-gray-500 uppercase tracking-widest">
+            <li><a href="/live-darshan" class="hover:text-white transition-colors">Live Darshan</a></li>
+            <li><a href="/ticket" class="hover:text-white transition-colors">Ticket Booking</a></li>
+            <li><a href="/dencity" class="hover:text-white transition-colors">Zone Status</a></li>
+          </ul>
+        </div>
+        <div class="md:col-span-3 space-y-6">
+          <h3 class="text-xs font-black uppercase tracking-[0.2em] text-orange-500">Connect</h3>
+          <ul class="space-y-4 text-sm font-medium text-gray-400 leading-tight">
+            <li>Mahakal Marg, Ujjain</li>
+            <li>help@divyayatra.com</li>
+            <li>+91 98765 43210</li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-t border-white/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-6">
+        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600">© 2025 DIVYA YATRA • SACRED
+          ARCHITECTURE</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-routing-machine/3.2.12/leaflet-routing-machine.min.js"></script>
+
+  <script>
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    // Temple data with coordinates and information
+    const temples = [
+      {
+        name: "Mahakaleshwar Temple",
+        lat: 23.1827,
+        lng: 75.7681,
+        description:
+          "One of the 12 Jyotirlingas, dedicated to Lord Shiva. Famous for its Bhasma Aarti.",
+        significance:
+          "Most sacred temple in Ujjain, attracts millions of devotees annually",
+        density: "high",
+        deity: "Lord Shiva",
+        bestTime: "Early morning for Bhasma Aarti",
+      },
+      {
+        name: "Kal Bhairav Temple",
+        lat: 23.1765,
+        lng: 75.7849,
+        description:
+          "Dedicated to Kal Bhairav, the guardian deity of Ujjain.",
+        significance:
+          "Unique temple where liquor is offered as prasad to the deity",
+        density: "medium",
+        deity: "Kal Bhairav",
+        bestTime: "Tuesday and Sunday",
+      },
+      {
+        name: "Harsiddhi Temple",
+        lat: 23.1694,
+        lng: 75.7878,
+        description:
+          "One of the 51 Shakti Peethas, dedicated to Goddess Harsiddhi.",
+        significance:
+          "Ancient temple with rich history and spiritual significance",
+        density: "medium",
+        deity: "Goddess Harsiddhi",
+        bestTime: "Navratri festivals",
+      },
+      {
+        name: "Chintaman Ganesh Temple",
+        lat: 23.1958,
+        lng: 75.7714,
+        description:
+          "Famous Ganesh temple believed to fulfill wishes of devotees.",
+        significance:
+          "One of the most visited Ganesh temples in Madhya Pradesh",
+        density: "high",
+        deity: "Lord Ganesha",
+        bestTime: "Wednesday and Ganesh Chaturthi",
+      },
+      {
+        name: "Mangalnath Temple",
+        lat: 23.1653,
+        lng: 75.7542,
+        description:
+          "Birthplace of Mars (Mangal) according to Hindu mythology.",
+        significance:
+          "Remedial temple for Mars-related astrological problems",
+        density: "low",
+        deity: "Lord Shiva",
+        bestTime: "Tuesday early morning",
+      },
+      {
+        name: "Sandipani Ashram",
+        lat: 23.1917,
+        lng: 75.7833,
+        description:
+          "Where Lord Krishna and Balaram received education from Guru Sandipani.",
+        significance: "Sacred educational site with historical importance",
+        density: "low",
+        deity: "N/A",
+        bestTime: "Daytime hours",
+      },
+      {
+        name: "Kshipra Ghat",
+        lat: 23.1789,
+        lng: 75.7719,
+        description: "Sacred bathing ghat on the Shipra River.",
+        significance: "Site of Kumbh Mela and important for ritual bathing",
+        density: "high",
+        deity: "N/A",
+        bestTime: "Sunrise for holy dip",
+      },
+      {
+        name: "Gadkalika Temple",
+        lat: 23.1703,
+        lng: 75.7892,
+        description: "Ancient temple dedicated to Goddess Kalika.",
+        significance: "Important Shakti temple with architectural beauty",
+        density: "medium",
+        deity: "Goddess Kalika",
+        bestTime: "Friday and Navratri",
+      },
+    ];
+
+    // Population density areas in Ujjain
+    const densityAreas = [
+      // High density areas (Red)
+      {
+        name: "Mahakaleshwar Temple Area",
+        bounds: [
+          [23.18, 75.765],
+          [23.185, 75.771],
+        ],
+        color: "rgba(255, 0, 0, 0.6)",
+        density: "high",
+        info: "Temple complex area - Very high crowd density, especially during festivals and weekends",
+      },
+      {
+        name: "Main Market Area",
+        bounds: [
+          [23.178, 75.778],
+          [23.182, 75.782],
+        ],
+        color: "rgba(255, 0, 0, 0.6)",
+        density: "high",
+        info: "Commercial center - Heavy traffic and high pedestrian density",
+      },
+      {
+        name: "Railway Station Area",
+        bounds: [
+          [23.185, 75.785],
+          [23.19, 75.79],
+        ],
+        color: "rgba(255, 0, 0, 0.6)",
+        density: "high",
+        info: "Transport hub - High density due to commuters and travelers",
+      },
+      {
+        name: "Freeganj Market",
+        bounds: [
+          [23.172, 75.784],
+          [23.177, 75.788],
+        ],
+        color: "rgba(255, 0, 0, 0.6)",
+        density: "high",
+        info: "Commercial area - High traffic and crowd density",
+      },
+
+      // Medium density areas (Orange)
+      {
+        name: "Kal Bhairav Temple Area",
+        bounds: [
+          [23.174, 75.782],
+          [23.179, 75.787],
+        ],
+        color: "rgba(255, 165, 0, 0.6)",
+        density: "medium",
+        info: "Temple area - Moderate crowd density, increases during special occasions",
+      },
+      {
+        name: "Harsiddhi Temple Area",
+        bounds: [
+          [23.167, 75.785],
+          [23.172, 75.79],
+        ],
+        color: "rgba(255, 165, 0, 0.6)",
+        density: "medium",
+        info: "Shakti Peetha area - Moderate density with periodic increases",
+      },
+      {
+        name: "University Area",
+        bounds: [
+          [23.165, 75.775],
+          [23.17, 75.78],
+        ],
+        color: "rgba(255, 165, 0, 0.6)",
+        density: "medium",
+        info: "Educational hub - Moderate density during academic hours",
+      },
+      {
+        name: "Chintaman Ganesh Area",
+        bounds: [
+          [23.193, 75.769],
+          [23.198, 75.774],
+        ],
+        color: "rgba(255, 165, 0, 0.6)",
+        density: "medium",
+        info: "Popular temple area - Moderate to high density on Tuesdays",
+      },
+
+      // Low density areas (Green)
+      {
+        name: "Mangalnath Temple Area",
+        bounds: [
+          [23.163, 75.752],
+          [23.168, 75.757],
+        ],
+        color: "rgba(0, 255, 0, 0.6)",
+        density: "low",
+        info: "Peaceful temple area - Lower crowd density, good for quiet visits",
+      },
+      {
+        name: "Sandipani Ashram Area",
+        bounds: [
+          [23.189, 75.781],
+          [23.194, 75.786],
+        ],
+        color: "rgba(0, 255, 0, 0.6)",
+        density: "low",
+        info: "Educational/spiritual site - Lower density, peaceful environment",
+      },
+      {
+        name: "Outer Residential Areas",
+        bounds: [
+          [23.16, 75.76],
+          [23.165, 75.765],
+        ],
+        color: "rgba(0, 255, 0, 0.6)",
+        density: "low",
+        info: "Residential area - Lower density, mainly local traffic",
+      },
+      {
+        name: "Shipra River Banks",
+        bounds: [
+          [23.175, 75.769],
+          [23.18, 75.774],
+        ],
+        color: "rgba(0, 255, 0, 0.6)",
+        density: "low",
+        info: "River area - Generally peaceful, except during festivals",
+      },
+    ];
+
+    let map;
+    let userLocation = null;
+    let routingControl = null;
+    let templeMarkers = [];
+    let userMarker = null;
+    let densityOverlays = [];
+    let densityVisible = false;
+
+    // Custom temple icon
+    const templeIcon = L.icon({
+      iconUrl:
+        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTUiIGZpbGw9IiNmZjdhMDAiIHN0cm9rZT0iI2ZmNTcwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjx0ZXh0IHg9IjE2IiB5PSIyMSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxNiIgZmlsbD0id2hpdGUiPvCfj5s8L3RleHQ+Cjwvc3ZnPg==",
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+      popupAnchor: [0, -16],
+    });
+
+    // Custom user location icon
+    const userIcon = L.icon({
+      iconUrl:
+        "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiNmZjdhMDAiIHN0cm9rZT0iI2ZmNTcwMCIgc3Ryb2tlLXdpZHRoPSIyIi8+CjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjMiIGZpbGw9IndoaXRlIi8+Cjwvc3ZnPg==",
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+      popupAnchor: [0, -12],
+    });
+
+    // Initialize the map
+    function initMap() {
+      map = L.map("map").setView([23.1765, 75.7849], 12);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution:
+          '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+      }).addTo(map);
+
+      // Add temple markers
+      showAllTemples();
+
+      // Create temple buttons
+      createTempleButtons();
+
+      // Create temple info cards
+      createTempleInfoCards();
+
+      // Create density overlays
+      createDensityOverlays();
+
+      // Add click event for manual location setting
+      map.on("click", function (e) {
+        setManualLocation(e.latlng.lat, e.latlng.lng, "Selected Location");
+      });
+
+      // Add keyboard support for location input
+      document
+        .getElementById("locationInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            searchLocation();
+          }
+        });
+
+      // Add toggle density button event
+      document
+        .getElementById("toggleDensityBtn")
+        .addEventListener("click", toggleDensityOverlay);
+
+      // Add button event listeners
+      document
+        .getElementById("getLocationBtn")
+        .addEventListener("click", getUserLocation);
+      document
+        .getElementById("showAllTemplesBtn")
+        .addEventListener("click", showAllTemples);
+      document
+        .getElementById("clearRoutesBtn")
+        .addEventListener("click", clearRoutes);
+    }
+
+    // Create density overlays
+    function createDensityOverlays() {
+      densityAreas.forEach((area) => {
+        const rectangle = L.rectangle(area.bounds, {
+          color: area.color,
+          weight: 2,
+          opacity: 0.8,
+          fillColor: area.color,
+          fillOpacity: 0.4,
+        });
+
+        const densityIcon =
+          area.density === "high"
+            ? "🔴"
+            : area.density === "medium"
+              ? "🟠"
+              : "🟢";
+
+        rectangle.bindPopup(`
+            <div class="custom-popup">
+              <h3>${densityIcon} ${area.name}</h3>
+              <p><strong>Density:</strong> ${area.density.toUpperCase()}</p>
+              <p>${area.info}</p>
+            </div>
+          `);
+
+        densityOverlays.push(rectangle);
+      });
+    }
+
+    // Toggle density overlay
+    function toggleDensityOverlay() {
+      densityVisible = !densityVisible;
+      const btn = document.getElementById("toggleDensityBtn");
+
+      if (densityVisible) {
+        densityOverlays.forEach((overlay) => map.addLayer(overlay));
+        btn.innerHTML =
+          '<i class="fas fa-eye-slash"></i> Hide Density Overlay';
+        btn.classList.add("success");
+      } else {
+        densityOverlays.forEach((overlay) => map.removeLayer(overlay));
+        btn.innerHTML =
+          '<i class="fas fa-layer-group"></i> Toggle Density Overlay';
+        btn.classList.remove("success");
+      }
+    }
+
+    // Create temple selection buttons
+    function createTempleButtons() {
+      const container = document.getElementById("templeButtons");
+      temples.forEach((temple, index) => {
+        const btn = document.createElement("button");
+        btn.className = "group relative flex items-center justify-between p-5 rounded-2xl border-2 border-slate-50 bg-white hover:border-orange-500 hover:shadow-xl hover:shadow-orange-500/10 transition-all duration-300 temple-btn disabled:opacity-50 disabled:cursor-not-allowed disabled:grayscale";
+
+        const densityIcon =
+          temple.density === "high"
+            ? '<span class="flex h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>'
+            : temple.density === "medium"
+              ? '<span class="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse"></span>'
+              : '<span class="flex h-2 w-2 rounded-full bg-green-500 animate-pulse"></span>';
+
+        const densityLabel = temple.density.charAt(0).toUpperCase() + temple.density.slice(1);
+
+        btn.innerHTML = `
+          <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 font-bold group-hover:bg-orange-600 group-hover:text-white transition-colors">
+              ${index + 1}
+            </div>
+            <div class="text-left">
+              <span class="block text-sm font-black text-slate-800 group-hover:text-orange-600 transition-colors uppercase tracking-tight">${temple.name}</span>
+              <span class="block text-[10px] font-bold text-slate-400 group-hover:text-slate-500 uppercase tracking-widest mt-0.5">${temple.deity}</span>
+            </div>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            <div class="flex items-center gap-2 bg-slate-50 px-2.5 py-1 rounded-full group-hover:bg-orange-50 transition-colors">
+              ${densityIcon}
+              <span class="text-[9px] font-black uppercase text-slate-500 group-hover:text-orange-600">${densityLabel} Crowd</span>
+            </div>
+            <span class="text-[8px] font-bold text-slate-300 uppercase tracking-tighter">View Path →</span>
+          </div>
+        `;
+
+        btn.onclick = () => {
+          showRouteToTemple(index);
+          // Scroll to map
+          document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+        btn.disabled = true; // Initially disabled until location is set
+        container.appendChild(btn);
+      });
+    }
+
+    // Enable/disable temple buttons based on location availability
+    function toggleTempleButtons(enabled) {
+      const buttons = document.querySelectorAll(".temple-btn");
+      buttons.forEach((btn) => {
+        btn.disabled = !enabled;
+      });
+    }
+
+    // Create temple information cards
+    function createTempleInfoCards() {
+      const container = document.getElementById("templeGrid");
+      temples.forEach((temple) => {
+        const card = document.createElement("div");
+        card.className = "group relative bg-white p-8 rounded-[2.5rem] shadow-xl border-2 border-slate-50 hover:border-orange-500 hover:shadow-2xl hover:shadow-orange-500/10 transition-all duration-500 overflow-hidden";
+
+        const densityColor =
+          temple.density === "high" ? "text-red-600 bg-red-50 border-red-100" :
+            temple.density === "medium" ? "text-orange-600 bg-orange-50 border-orange-100" :
+              "text-green-600 bg-green-50 border-green-100";
+
+        card.innerHTML = `
+            <div class="absolute -top-12 -right-12 w-32 h-32 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-all duration-500"></div>
+            
+            <div class="flex flex-col gap-6 relative z-10">
+              <div class="flex justify-between items-start">
+                <div class="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white text-2xl shadow-lg shadow-slate-900/20 group-hover:scale-110 group-hover:bg-orange-600 transition-all">
+                  🔱
+                </div>
+                <div class="px-3 py-1 rounded-full border text-[9px] font-black uppercase tracking-widest ${densityColor}">
+                   ${temple.density} Density Area
+                </div>
+              </div>
+
+              <div>
+                <h4 class="text-xl font-black text-slate-800 mb-2 uppercase tracking-tight group-hover:text-orange-600 transition-colors">
+                  ${temple.name}
+                </h4>
+                <div class="flex items-center gap-2 mb-4">
+                  <span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                  <span class="text-[10px] font-black text-orange-500 uppercase tracking-[0.2em]">${temple.deity}</span>
+                </div>
+              </div>
+
+              <div class="space-y-4">
+                <div class="bg-slate-50/50 p-4 rounded-2xl group-hover:bg-orange-50/30 transition-colors">
+                  <span class="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Divine Essence</span>
+                  <p class="text-xs text-slate-600 font-bold leading-relaxed">${temple.description}</p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="p-3 bg-slate-50/50 rounded-xl group-hover:bg-white transition-colors">
+                    <span class="block text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">Best Visitation</span>
+                    <span class="text-[10px] font-black text-slate-800">${temple.bestTime}</span>
+                  </div>
+                  <div class="p-3 bg-slate-50/50 rounded-xl group-hover:bg-white transition-colors">
+                    <span class="block text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">Significance</span>
+                    <span class="text-[10px] font-black text-slate-800 truncate">${temple.significance.split(',')[0]}</span>
+                  </div>
+                </div>
+              </div>
+
+              <button class="w-full mt-2 py-4 rounded-2xl bg-slate-900 text-white font-black text-[10px] uppercase tracking-[0.2em] shadow-lg shadow-slate-900/10 group-hover:bg-orange-600 group-hover:shadow-orange-600/20 transition-all">
+                Visualize Journey Map
+              </button>
+            </div>
+        `;
+
+        card.querySelector('button').onclick = () => {
+          // Find index of this temple
+          const index = temples.findIndex(t => t.name === temple.name);
+          if (index !== -1) showRouteToTemple(index);
+          document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+        container.appendChild(card);
+      });
+    }
+
+    // Show all temples on map with custom markers
+    function showAllTemples() {
+      // Clear existing markers
+      templeMarkers.forEach((marker) => map.removeLayer(marker));
+      templeMarkers = [];
+
+      temples.forEach((temple, index) => {
+        const marker = L.marker([temple.lat, temple.lng], {
+          icon: templeIcon,
+        }).addTo(map);
+
+        const densityIcon =
+          temple.density === "high"
+            ? "🔴"
+            : temple.density === "medium"
+              ? "🟠"
+              : "🟢";
+        const densityText =
+          temple.density === "high"
+            ? "High"
+            : temple.density === "medium"
+              ? "Medium"
+              : "Low";
+
+        marker.bindPopup(`
+            <div class="custom-popup">
+              <h3>${temple.name}</h3>
+              <p><strong>Deity:</strong> ${temple.deity}</p>
+              <p>${temple.description}</p>
+              <p><strong>Significance:</strong> ${temple.significance}</p>
+              <p><strong>Best Time:</strong> ${temple.bestTime}</p>
+              <p><strong>Crowd Density:</strong> ${densityText}</p>
+              <button onclick="showRouteToTemple(${index})">Show Route</button>
+            </div>
+          `);
+
+        templeMarkers.push(marker);
+      });
+
+      // Fit bounds to show all temples
+      if (temples.length > 0) {
+        const group = new L.featureGroup(templeMarkers);
+        map.fitBounds(group.getBounds().pad(0.1));
+      }
+    }
+
+    // Get user's current location
+    function getUserLocation() {
+      const status = document.getElementById("status");
+      status.innerHTML =
+        '<div class="loading"><div class="spinner"></div><i class="fas fa-compass"></i> Detecting your location...</div>';
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setUserLocation(latitude, longitude, "Your Location");
+            status.innerHTML =
+              '<div class="success-message"><i class="fas fa-check-circle"></i> Location detected successfully!</div>';
+          },
+          (error) => {
+            let errorMessage = "Could not detect your location.";
+            if (error.code === error.PERMISSION_DENIED) {
+              errorMessage =
+                "Location access was denied. Please allow location access or set manually.";
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+              errorMessage = "Location information is unavailable.";
+            } else if (error.code === error.TIMEOUT) {
+              errorMessage = "The request to get user location timed out.";
+            }
+            status.innerHTML = `<div class="error-message"><i class="fas fa-exclamation-circle"></i> ${errorMessage}</div>`;
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      } else {
+        status.innerHTML =
+          '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Geolocation is not supported by your browser. Please set location manually.</div>';
+      }
+    }
+
+    // Set user location manually
+    function setManualLocation(lat, lng, name) {
+      setUserLocation(lat, lng, name);
+      document.getElementById(
+        "status"
+      ).innerHTML = `<div class="success-message"><i class="fas fa-check-circle"></i> Location set to ${name} (${lat.toFixed(
+        4
+      )}, ${lng.toFixed(4)})</div>`;
+    }
+
+    // Set user location on map
+    function setUserLocation(lat, lng, name) {
+      // Remove existing user marker if any
+      if (userMarker) {
+        map.removeLayer(userMarker);
+      }
+
+      // Set new user location
+      userLocation = { lat, lng, name };
+
+      // Add marker for user location
+      userMarker = L.marker([lat, lng], {
+        icon: userIcon,
+        zIndexOffset: 1000,
+      }).addTo(map);
+
+      userMarker
+        .bindPopup(
+          `<b>${name}</b><br>Lat: ${lat.toFixed(4)}<br>Lng: ${lng.toFixed(4)}`
+        )
+        .openPopup();
+
+      // Center map on user location
+      map.setView([lat, lng], 14);
+
+      // Enable temple buttons
+      toggleTempleButtons(true);
+    }
+
+    // Search for location using geocoding
+    function searchLocation() {
+      const input = document.getElementById("locationInput").value.trim();
+      const status = document.getElementById("status");
+
+      if (!input) {
+        status.innerHTML =
+          '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Please enter a location to search</div>';
+        return;
+      }
+
+      status.innerHTML =
+        '<div class="loading"><div class="spinner"></div><i class="fas fa-search"></i> Searching for location...</div>';
+
+      // Use Nominatim for geocoding
+      fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          input
+        )}`
+      )
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.length > 0) {
+            const firstResult = data[0];
+            const lat = parseFloat(firstResult.lat);
+            const lng = parseFloat(firstResult.lon);
+            setManualLocation(lat, lng, firstResult.display_name);
+          } else {
+            status.innerHTML =
+              '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Location not found. Please try a different search term.</div>';
+          }
+        })
+        .catch((error) => {
+          console.error("Geocoding error:", error);
+          status.innerHTML =
+            '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Error searching for location. Please try again.</div>';
+        });
+    }
+
+    // Quick location functions
+    function setLocationToIndore() {
+      setManualLocation(22.7196, 75.8577, "Indore, Madhya Pradesh");
+    }
+
+    function setLocationToBhopal() {
+      setManualLocation(23.2599, 77.4126, "Bhopal, Madhya Pradesh");
+    }
+
+    function setLocationToUjjain() {
+      setManualLocation(23.1827, 75.7681, "Ujjain Mahakal Area");
+    }
+
+    function setLocationToUjjainStation() {
+      setManualLocation(23.1755, 75.7895, "Ujjain Junction Station");
+    }
+
+    function setLocationToDewas() {
+      setManualLocation(22.9676, 76.0534, "Dewas Town");
+    }
+
+    function setLocationToDelhi() {
+      setManualLocation(28.6139, 77.209, "Delhi, India");
+    }
+
+    // Show route to selected temple
+    function showRouteToTemple(templeIndex) {
+      if (!userLocation) {
+        document.getElementById("status").innerHTML =
+          '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Please set your location first</div>';
+        return;
+      }
+
+      const temple = temples[templeIndex];
+      const status = document.getElementById("status");
+      status.innerHTML =
+        '<div class="loading"><div class="spinner"></div><i class="fas fa-route"></i> Calculating route to ' +
+        temple.name +
+        "...</div>";
+
+      // Clear any existing routes
+      if (routingControl) {
+        map.removeControl(routingControl);
+      }
+
+      // Create new route
+      routingControl = L.Routing.control({
+        waypoints: [
+          L.latLng(userLocation.lat, userLocation.lng),
+          L.latLng(temple.lat, temple.lng),
+        ],
+        routeWhileDragging: false,
+        showAlternatives: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        lineOptions: {
+          styles: [{ color: "#ff7a00", opacity: 0.8, weight: 6 }],
+        },
+        createMarker: function () {
+          return null;
+        }, // Disable default markers
+      }).addTo(map);
+
+      routingControl.on("routesfound", function (e) {
+        const routes = e.routes;
+        if (routes && routes.length > 0) {
+          const route = routes[0];
+          const distance = (route.summary.totalDistance / 1000).toFixed(1);
+          const time = Math.round(route.summary.totalTime / 60);
+
+          // Estimate traffic based on density areas along the route
+          let trafficInfo = analyzeTrafficAlongRoute(route.coordinates);
+
+          status.innerHTML = `
+          <div class="success-message">
+            <strong><i class="fas fa-route"></i> Route to ${temple.name}</strong><br>
+            <i class="fas fa-road"></i> Distance: ${distance} km | <i class="fas fa-clock"></i> Time: ~${time} minutes<br>
+            <i class="fas fa-traffic-light"></i> Traffic: ${trafficInfo.severity} (${trafficInfo.description})<br>
+            <small>${trafficInfo.advice}</small>
+          </div>
+        `;
+        }
+      });
+
+      routingControl.on("routingerror", function (e) {
+        status.innerHTML =
+          '<div class="error-message"><i class="fas fa-exclamation-circle"></i> Could not calculate route. Please try another location.</div>';
+      });
+    }
+
+    // Analyze traffic along the route based on density areas
+    function analyzeTrafficAlongRoute(routeCoordinates) {
+      let highDensityCount = 0;
+      let mediumDensityCount = 0;
+
+      // Sample points along the route to check against density areas
+      const samplePoints = [];
+      const step = Math.floor(routeCoordinates.length / 20); // Sample 20 points
+      for (let i = 0; i < routeCoordinates.length; i += step) {
+        samplePoints.push(routeCoordinates[i]);
+      }
+
+      // Check each sample point against density areas
+      samplePoints.forEach((point) => {
+        const latLng = L.latLng(point);
+
+        densityAreas.forEach((area) => {
+          const bounds = L.latLngBounds(area.bounds);
+          if (bounds.contains(latLng)) {
+            if (area.density === "high") highDensityCount++;
+            else if (area.density === "medium") mediumDensityCount++;
+          }
+        });
+      });
+
+      // Determine traffic severity based on density areas encountered
+      if (highDensityCount > 3) {
+        return {
+          severity: "Heavy",
+          description: "Multiple high-density areas along route",
+          advice:
+            "Expect significant delays, especially during peak hours (8-10 AM, 6-8 PM)",
+        };
+      } else if (highDensityCount > 0 || mediumDensityCount > 2) {
+        return {
+          severity: "Moderate",
+          description: "Some congested areas expected",
+          advice:
+            "Possible delays during busy times, consider early morning visits",
+        };
+      } else {
+        return {
+          severity: "Light",
+          description: "Mostly clear route",
+          advice: "Good conditions for travel with minimal delays expected",
+        };
+      }
+    }
+
+    // Clear all routes from map
+    function clearRoutes() {
+      if (routingControl) {
+        map.removeControl(routingControl);
+        routingControl = null;
+      }
+      document.getElementById("status").innerHTML =
+        '<i class="fas fa-info-circle"></i> Routes cleared. Set your location to find new routes.';
+    }
+
+    // Initialize the map when the page loads
+    window.onload = initMap;
+  </script>
+</body>
+
+</html>
