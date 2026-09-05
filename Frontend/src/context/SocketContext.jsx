@@ -17,19 +17,30 @@ export const SocketProvider = ({ children }) => {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const newSocket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
-            auth: { token }
+        const serverUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const newSocket = io(serverUrl, {
+            auth: { token },
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
         });
 
         newSocket.on('connect', () => {
-            console.log('Connected to socket server');
+            console.log('✅ Connected to socket server at', serverUrl, '| Socket ID:', newSocket.id);
+        });
+
+        newSocket.on('connect_error', (err) => {
+            console.warn('⚠️ Socket connection error:', err.message);
         });
 
         newSocket.on('receiveLocation', (data) => {
+            console.log('📍 Live location received:', data);
             setLastLocation(data);
         });
 
         newSocket.on('SOS_RECEIVED', (data) => {
+            console.log('🚨 SOS alert received:', data);
             setSosAlerts(prev => [...prev, data]);
             
             // Speak alert
@@ -50,22 +61,26 @@ export const SocketProvider = ({ children }) => {
         });
 
         newSocket.on('TRACKING_STARTED', (data) => {
+            console.log('🟢 TRACKING_STARTED alert:', data);
             setActiveTrackingSession(data);
             
             // Speak alert
             if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(`${data.userName} has started a tracking session and assigned you as their guardian. Alert!`);
+                const utterance = new SpeechSynthesisUtterance(`${data.userName} has started a tracking session and assigned you as their guardian.`);
                 window.speechSynthesis.speak(utterance);
             }
         });
 
         newSocket.on('TRACKING_STOPPED', (data) => {
+            console.log('🔴 TRACKING_STOPPED alert:', data);
             setActiveTrackingSession(null);
         });
 
         setSocket(newSocket);
 
-        return () => newSocket.close();
+        return () => {
+            newSocket.close();
+        };
     }, []);
 
     const sendLocation = (lat, lng, speed = 0, accuracy = 0, tripStats = null) => {

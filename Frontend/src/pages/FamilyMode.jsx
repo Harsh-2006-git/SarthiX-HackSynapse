@@ -134,6 +134,30 @@ const FamilyMode = () => {
     } catch (_) {}
   };
 
+  const fetchProtégéHistory = async (userId, userName) => {
+    try {
+      const t = localStorage.getItem('token');
+      const r = await axios.get(`${API_URL}/location/history/${userId}`, { headers: { Authorization: `Bearer ${t}` } });
+      const history = r.data;
+      if (history && history.length > 0) {
+        const coords = history.map(item => [parseFloat(item.lat), parseFloat(item.lng)]);
+        const latest = coords[coords.length - 1];
+        setProtégePos(latest);
+        setLivePos(latest);
+        trailPointsRef.current = coords;
+        drawTrail(coords);
+        addMarker(latest, '#f43f5e', '📍', 'live');
+        mapInstance.current?.flyTo({ center: [latest[1], latest[0]], zoom: 15 });
+        setStatus(`🟢 Tracking ${userName} — Last signal located.`);
+      } else {
+        setStatus(`Watching ${userName}… Waiting for active GPS transmission.`);
+      }
+    } catch (err) {
+      console.warn('Could not fetch historical location:', err.message);
+      setStatus(`Watching ${userName}… Waiting for active GPS transmission.`);
+    }
+  };
+
   const approve = async (userId) => {
     try {
       const t = localStorage.getItem('token');
@@ -303,18 +327,19 @@ const FamilyMode = () => {
   /* ─── GUARDIAN: React to incoming live location ─── */
   useEffect(() => {
     if (role !== 'guardian' || !lastLocation) return;
-    const uid = lastLocation.userId;
+    const uid = Number(lastLocation.userId);
 
     // If we already selected someone and this isn't them, skip
-    if (selectedProtégé && uid !== selectedProtégé) return;
+    if (selectedProtégé && Number(selectedProtégé) !== uid) return;
 
     // Auto-select: accept ANY incoming location if no one is selected yet
     if (!selectedProtégé) {
       setSelectedProtégé(uid);
     }
 
-    const pos = [lastLocation.lat, lastLocation.lng];
+    const pos = [parseFloat(lastLocation.lat), parseFloat(lastLocation.lng)];
     setProtégePos(pos);
+    setLivePos(pos);
 
     // Sync OSRM trip stats sent by pilgrim
     if (lastLocation.tripStats) {
@@ -344,15 +369,16 @@ const FamilyMode = () => {
 
     // update / create marker
     addMarker(pos, '#f43f5e', '📍', 'live');
-    setLivePos(pos);
+    mapInstance.current.easeTo({ center: [pos[1], pos[0]] });
+    setStatus(`🟢 LIVE — Signal received at ${new Date().toLocaleTimeString()}`);
   }, [lastLocation, role, selectedProtégé, activeTrackingSesssion]);
 
   /* ─── GUARDIAN: React to tracking-started event ─── */
   useEffect(() => {
     if (role !== 'guardian' || !activeTrackingSesssion) return;
     const { userId, userName, src, dest } = activeTrackingSesssion;
-    setSelectedProtégé(userId);
-    setStatus(`🟢 ${userName} is now being tracked live.`);
+    setSelectedProtégé(Number(userId));
+    setStatus(`🟢 ${userName} started live tracking.`);
     speak(`Alert! ${userName} has started a tracking session.`);
     playAlarm();
 
@@ -1110,6 +1136,9 @@ const FamilyMode = () => {
                     ) : protégés.map(p => (
                       <button key={p.mapping_id}
                         onClick={() => {
+                          const targetUserId = p.user.client_id;
+                          setSelectedProtégé(targetUserId);
+
                           if (mapInstance.current) {
                             if (mapInstance.current.getLayer('trail-layer')) mapInstance.current.removeLayer('trail-layer');
                             if (mapInstance.current.getSource('trail-source')) mapInstance.current.removeSource('trail-source');
@@ -1126,24 +1155,25 @@ const FamilyMode = () => {
                           trailPointsRef.current = [];
                           setSosActive(false);
                           setProtégePos(null);
-                          setStatus(`Watching ${p.user.name}…`);
+                          setStatus(`Connecting to ${p.user.name}…`);
+                          fetchProtégéHistory(targetUserId, p.user.name);
                         }}
                         className={`w-full p-4 rounded-2xl border-2 flex items-center gap-3 transition-all ${
-                          selectedProtégé === p.user.client_id
-                            ? 'border-blue-600 bg-blue-50/50'
+                          Number(selectedProtégé) === Number(p.user.client_id)
+                            ? 'border-blue-600 bg-blue-50/50 shadow-md'
                             : 'border-slate-50 bg-slate-50 hover:border-slate-200'
                         }`}>
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md ${
-                          selectedProtégé === p.user.client_id ? 'bg-blue-600' : 'bg-slate-400'
+                          Number(selectedProtégé) === Number(p.user.client_id) ? 'bg-blue-600' : 'bg-slate-400'
                         }`}><Users size={18} /></div>
                         <div className="text-left flex-1">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-black text-slate-800 uppercase tracking-tight">{p.user.name}</p>
-                            {lastLocation?.userId === p.user.client_id && <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />}
+                            {Number(lastLocation?.userId) === Number(p.user.client_id) && <div className="w-2 h-2 bg-green-500 rounded-full animate-ping" />}
                           </div>
                           <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{p.user.phone}</p>
                         </div>
-                        <ChevronRight size={16} className="text-slate-300" />
+                        <ChevronRight size={16} className={Number(selectedProtégé) === Number(p.user.client_id) ? 'text-blue-600' : 'text-slate-300'} />
                       </button>
                     ))}
                   </div>
