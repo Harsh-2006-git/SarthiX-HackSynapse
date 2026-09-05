@@ -7,7 +7,12 @@ import Client from '../models/client.js';
 import { sendSOSEmail } from '../utils/emailService.js';
 
 const userSocketMap = new Map(); // userId -> socketId
+const activeSessions = new Map(); // userId -> { userId, userName, phone, email, src, dest, guardianId, timestamp }
 let socketServer;
+
+export const getActiveSessionForUser = (userId) => {
+    return activeSessions.get(Number(userId)) || null;
+};
 
 export const notifyZoneRisk = (recipientIds, payload) => {
     if (!socketServer) return;
@@ -146,8 +151,12 @@ export const initSocket = (server) => {
                     email: user.email,
                     src,
                     dest,
+                    guardianId,
                     timestamp: new Date()
                 };
+
+                // Store in activeSessions map
+                activeSessions.set(Number(userId), alertData);
 
                 // Notify the specific guardian
                 io.to(`user_${guardianId}`).emit('TRACKING_STARTED', alertData);
@@ -160,6 +169,7 @@ export const initSocket = (server) => {
         // Handle Tracking Session Stop
         socket.on('stopTracking', async (data) => {
             const { guardianId } = data;
+            activeSessions.delete(Number(userId));
             if (!guardianId) return;
 
             io.to(`user_${guardianId}`).emit('TRACKING_STOPPED', { userId });

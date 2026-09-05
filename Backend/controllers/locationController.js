@@ -2,6 +2,18 @@ import LocationLog from '../models/LocationLog.js';
 import GuardianMapping from '../models/GuardianMapping.js';
 import Client from '../models/client.js';
 import { Op } from 'sequelize';
+import { getActiveSessionForUser } from '../socket/socketHandler.js';
+
+// Get active real-time tracking session (Origin, Destination, Route)
+export const getActiveTrackingSession = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const session = getActiveSessionForUser(userId);
+        res.json(session || null);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
 
 // 1. Get location history of a user
 export const getLocationHistory = async (req, res) => {

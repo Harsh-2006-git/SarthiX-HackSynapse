@@ -139,6 +139,7 @@ const FamilyMode = () => {
   const fetchProtégéHistory = async (userId, userName) => {
     try {
       const t = localStorage.getItem('token');
+      // 1. Fetch historical GPS breadcrumbs trail
       const r = await axios.get(`${API_URL}/location/history/${userId}`, { headers: { Authorization: `Bearer ${t}` } });
       const history = r.data;
       if (history && history.length > 0) {
@@ -150,10 +151,21 @@ const FamilyMode = () => {
         drawTrail(coords);
         addMarker(latest, '#f43f5e', '📍', 'live');
         mapInstance.current?.flyTo({ center: [latest[1], latest[0]], zoom: 15 });
-        setStatus(`🟢 Tracking ${userName} — Last signal located.`);
+        setStatus(`🟢 Tracking ${userName} — ${history.length} path movement points plotted.`);
       } else {
         setStatus(`Watching ${userName}… Waiting for active GPS transmission.`);
       }
+
+      // 2. Fetch active session (Planned Origin -> Destination Route)
+      try {
+        const sessionRes = await axios.get(`${API_URL}/location/active-session/${userId}`, { headers: { Authorization: `Bearer ${t}` } });
+        const session = sessionRes.data;
+        if (session && session.src && session.dest) {
+          drawRoute([session.src.lat, session.src.lng], [session.dest.lat, session.dest.lng], '#f97316', 6, false, 'suggested');
+          addMarker([session.src.lat, session.src.lng], '#f97316', '📍', 'src');
+          addMarker([session.dest.lat, session.dest.lng], '#2563eb', '🏁', 'dest');
+        }
+      } catch (_) {}
     } catch (err) {
       console.warn('Could not fetch historical location:', err.message);
       setStatus(`Watching ${userName}… Waiting for active GPS transmission.`);
@@ -503,11 +515,22 @@ const FamilyMode = () => {
     }
 
     const el = document.createElement('div');
-    el.className = 'w-9 h-9 rounded-full border-2 border-white flex items-center justify-center text-white shadow-lg transition-transform duration-300';
-    el.style.backgroundColor = color;
-    el.style.fontSize = '16px';
-    el.style.boxShadow = `0 4px 15px ${color}80`;
-    el.innerHTML = emoji;
+    if (type === 'live') {
+      el.className = 'relative flex items-center justify-center';
+      el.innerHTML = `
+        <div class="absolute -inset-4 bg-rose-500/25 rounded-full animate-ping pointer-events-none"></div>
+        <div class="absolute -inset-2 bg-rose-500/40 rounded-full animate-pulse pointer-events-none"></div>
+        <div class="relative w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-white shadow-2xl transition-transform duration-300" style="background-color: ${color}; box-shadow: 0 4px 20px ${color}99; font-size: 17px;">
+          ${emoji}
+        </div>
+      `;
+    } else {
+      el.className = 'w-9 h-9 rounded-full border-2 border-white flex items-center justify-center text-white shadow-lg transition-transform duration-300';
+      el.style.backgroundColor = color;
+      el.style.fontSize = '16px';
+      el.style.boxShadow = `0 4px 15px ${color}80`;
+      el.innerHTML = emoji;
+    }
 
     const marker = new maplibregl.Marker({ element: el })
       .setLngLat([pos[1], pos[0]])
@@ -567,14 +590,14 @@ const FamilyMode = () => {
         paint: {
           'line-color': color,
           'line-width': weight,
-          'line-opacity': 0.8
+          'line-opacity': 0.85
         }
       });
 
       if (fit && geojson.coordinates.length > 0) {
         const coords = geojson.coordinates;
         const bounds = coords.reduce((acc, coord) => acc.extend(coord), new maplibregl.LngLatBounds(coords[0], coords[0]));
-        mapInstance.current.fitBounds(bounds, { padding: 50 });
+        mapInstance.current.fitBounds(bounds, { padding: 60 });
       }
 
     } catch (e) {
@@ -588,6 +611,7 @@ const FamilyMode = () => {
     const coordinates = points.map(p => [p[1], p[0]]);
     const sourceId = 'trail-source';
     const layerId = 'trail-layer';
+    const layerGlowId = 'trail-glow-layer';
 
     if (mapInstance.current.getSource(sourceId)) {
       mapInstance.current.getSource(sourceId).setData({
@@ -611,6 +635,23 @@ const FamilyMode = () => {
         }
       });
 
+      // Outer glowing movement aura line
+      mapInstance.current.addLayer({
+        id: layerGlowId,
+        type: 'line',
+        source: sourceId,
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#60a5fa',
+          'line-width': 8,
+          'line-opacity': 0.45
+        }
+      });
+
+      // Solid vibrant blue movement trail line
       mapInstance.current.addLayer({
         id: layerId,
         type: 'line',
@@ -620,10 +661,9 @@ const FamilyMode = () => {
           'line-cap': 'round'
         },
         paint: {
-          'line-color': '#3b82f6',
-          'line-width': 4,
-          'line-opacity': 0.85,
-          'line-dasharray': [2, 2]
+          'line-color': '#2563eb',
+          'line-width': 5,
+          'line-opacity': 0.95
         }
       });
     }

@@ -1,6 +1,7 @@
 import express from 'express';
 import { 
     getLocationHistory, 
+    getActiveTrackingSession,
     addGuardian, 
     approveTracking, 
     getMyGuardians, 
@@ -14,6 +15,7 @@ const router = express.Router();
 router.use(verifyToken); // Apply auth middleware to all routes
 
 router.get('/history/:userId', getLocationHistory);
+router.get('/active-session/:userId', getActiveTrackingSession);
 router.post('/guardian', addGuardian);
 router.post('/approve', approveTracking);
 router.get('/my-guardians', getMyGuardians);
