@@ -3,7 +3,6 @@
 # Dependencies
 node_modules/
 **/node_modules/
-**/RAG/
 
 # Build/Dist outputs
 dist/
@@ -12,8 +11,13 @@ build/
 .next/
 out/
 **/dist/
+**/dist-ssr/
 **/build/
 **/.next/
+**/.pytest_cache/
+**/vectorstore/
+**/vector_store/
+**/chats.db
 
 # Environment Files
 .env
