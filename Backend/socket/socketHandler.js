@@ -142,6 +142,8 @@ export const initSocket = (server) => {
                 const alertData = {
                     userId,
                     userName: user.name,
+                    phone: user.phone,
+                    email: user.email,
                     src,
                     dest,
                     timestamp: new Date()

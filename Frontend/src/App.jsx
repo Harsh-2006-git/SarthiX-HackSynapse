@@ -28,6 +28,7 @@ import TrackingPage from "./pages/TrackingPage";
 import FollowMePage from "./pages/FollowMe";
 import FamilyMode from "./pages/FamilyMode";
 import ZoneRiskAlert from "./components/ZoneRiskAlert";
+import GuardianTrackingAlertModal from "./components/GuardianTrackingAlertModal";
 
 
 function App() {
@@ -108,6 +109,7 @@ function App() {
       </Routes>
       {location.pathname !== '/auth' && <AlertBanner />}
       {location.pathname !== '/auth' && <ZoneRiskAlert />}
+      {location.pathname !== '/auth' && <GuardianTrackingAlertModal />}
     </div>
   );
 }

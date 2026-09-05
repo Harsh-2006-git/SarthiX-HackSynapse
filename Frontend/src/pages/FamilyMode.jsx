@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -48,6 +49,7 @@ const getDistance = (lat1, lon1, lat2, lon2) => {
 
 /* ─────── COMPONENT ─────── */
 const FamilyMode = () => {
+  const location = useLocation();
   const {
     sendLocation, triggerSOS, startTracking, stopTracking,
     activeTrackingSesssion, lastLocation, sosAlerts
@@ -64,7 +66,7 @@ const FamilyMode = () => {
   const trailPointsRef = useRef([]);
 
   /* state */
-  const [role, setRoleState] = useState(localStorage.getItem('family_role') || null);
+  const [role, setRoleState] = useState(localStorage.getItem('family_role') || (location.state?.autoSelectUser ? 'guardian' : null));
   const setRole = (val) => {
     setRoleState(val);
     if (val) localStorage.setItem('family_role', val);
@@ -169,6 +171,32 @@ const FamilyMode = () => {
       setStatus('Approval failed');
     }
   };
+
+  /* ─── Auto-select user from navigation / alert modal ─── */
+  useEffect(() => {
+    if (location.state?.autoSelectUser) {
+      const uid = Number(location.state.autoSelectUser);
+      setRole('guardian');
+      setSelectedProtégé(uid);
+      fetchProtégéHistory(uid, location.state.session?.userName || 'Traveler');
+
+      if (location.state.sosActive) {
+        setSosActive(true);
+      }
+
+      if (location.state.session?.src && location.state.session?.dest) {
+        const { src, dest } = location.state.session;
+        setTimeout(() => {
+          if (mapInstance.current) {
+            drawRoute([src.lat, src.lng], [dest.lat, dest.lng], '#f97316', 6, true, 'suggested');
+            addMarker([src.lat, src.lng], '#f97316', '📍', 'src');
+            addMarker([dest.lat, dest.lng], '#2563eb', '🏁', 'dest');
+            mapInstance.current.flyTo({ center: [src.lng, src.lat], zoom: 14 });
+          }
+        }, 600);
+      }
+    }
+  }, [location.state]);
 
   /* ─── Search Suggestions Querying (Nominatim) ─── */
   const fetchSuggestions = async (query, setSuggestions) => {
