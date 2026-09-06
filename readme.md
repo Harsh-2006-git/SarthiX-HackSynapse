@@ -2,8 +2,6 @@
 
 # 🕉️ DIVYA YATRA
 
-### **SarthiX**
-
 ### AI-Powered Smart Pilgrim Experience & Mega-Event Crowd Management Platform
 
 <p>
@@ -22,6 +20,7 @@
 
 <br/>
 
+---
 
 <img width="1875" height="901" alt="Screenshot 2026-09-06 103457" src="https://github.com/user-attachments/assets/adb075d9-484e-48ae-bb60-f7e6daabcf64" />
 
