@@ -24,21 +24,24 @@ let sequelize;
 let sslOptions = {};
 if (process.env.DB_SSL === "true") {
   sslOptions = {
-    require: true,
     rejectUnauthorized: false
   };
 
   if (process.env.DB_CA_CERT_PATH) {
     try {
-      // Use process.cwd() or fallback to basic requires
-      const certPath = process.env.DB_CA_CERT_PATH.startsWith("/")
-        ? process.env.DB_CA_CERT_PATH
-        : new URL(`../${process.env.DB_CA_CERT_PATH}`, import.meta.url).pathname;
+      const configDir = path.dirname(fileURLToPath(import.meta.url));
+      const possiblePaths = [
+        path.resolve(configDir, "..", process.env.DB_CA_CERT_PATH),
+        path.resolve(configDir, process.env.DB_CA_CERT_PATH),
+        path.resolve(process.cwd(), process.env.DB_CA_CERT_PATH),
+        process.env.DB_CA_CERT_PATH
+      ];
 
-      if (fs.existsSync(certPath)) {
-        sslOptions.ca = fs.readFileSync(certPath);
-      } else if (fs.existsSync(process.env.DB_CA_CERT_PATH)) {
-        sslOptions.ca = fs.readFileSync(process.env.DB_CA_CERT_PATH);
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          sslOptions.ca = fs.readFileSync(p);
+          break;
+        }
       }
     } catch (err) {
       console.warn("⚠️ Could not read DB CA certificate:", err.message);
@@ -46,13 +49,25 @@ if (process.env.DB_SSL === "true") {
   }
 }
 
+const commonOptions = {
+  dialect: "mysql",
+  logging: false,
+  pool: {
+    max: 10,
+    min: 0,
+    acquire: 30000,
+    idle: 10000
+  },
+  dialectOptions: {
+    ...(process.env.DB_SSL === "true" ? { ssl: sslOptions } : {}),
+    connectTimeout: 60000
+  }
+};
+
 if (isCloud && process.env.DATABASE_URL) {
-  // Use connection string if provided for cloud
-  sequelize = new Sequelize(process.env.DATABASE_URL, {
-    dialect: "mysql",
-    logging: false,
-    dialectOptions: process.env.DB_SSL === "true" ? { ssl: sslOptions } : {},
-  });
+  // Clean any query string parameters that mysql2 doesn't understand (like ?ssl-mode=REQUIRED)
+  const cleanDbUrl = process.env.DATABASE_URL.split("?")[0];
+  sequelize = new Sequelize(cleanDbUrl, commonOptions);
 } else {
   // Otherwise use individual variables
   const DB_NAME = isCloud ? process.env.DB_NAME : process.env.DB_NAME_LOCAL;
@@ -68,9 +83,7 @@ if (isCloud && process.env.DATABASE_URL) {
     {
       host: DB_HOST,
       port: Number(DB_PORT),
-      dialect: "mysql",
-      logging: false,
-      dialectOptions: process.env.DB_SSL === "true" ? { ssl: sslOptions } : {},
+      ...commonOptions
     }
   );
 }
