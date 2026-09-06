@@ -475,7 +475,7 @@ export default function TravelPlannerPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[#FAF8F5]/20 via-[#FAF8F5]/80 to-[#FAF8F5]" />
       </div>
 
-      <main className="relative z-10 pt-24 pb-16 max-w-4xl mx-auto w-full px-4 sm:px-6 flex-grow">
+      <main className={`relative z-10 pt-24 pb-16 mx-auto w-full px-4 sm:px-6 lg:px-8 flex-grow transition-all duration-300 ${itinerary ? "max-w-6xl xl:max-w-7xl" : "max-w-4xl"}`}>
         
         {/* TOP NAVIGATION BARS */}
         <div className="flex items-center justify-between gap-3 mb-5">
@@ -773,7 +773,7 @@ export default function TravelPlannerPage() {
               </div>
             )}
 
-            <div className="bg-white rounded-3xl border border-orange-200/90 shadow-xl overflow-hidden p-6 sm:p-8">
+            <div className="w-full">
               <ItineraryDisplay itinerary={itinerary} isLoading={isLoading} error={error} />
             </div>
 

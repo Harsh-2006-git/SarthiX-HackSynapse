@@ -6,9 +6,7 @@ import App from "./App";
 import "./index.css";
 import { SocketProvider } from "./context/SocketContext";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID";
-console.log("VITE_GOOGLE_CLIENT_ID from env:", import.meta.env.VITE_GOOGLE_CLIENT_ID);
-console.log("Using GOOGLE_CLIENT_ID:", GOOGLE_CLIENT_ID);
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "520693645503-ofr7tj5966ka1cbqhgh0pp8kilvhr2u1.apps.googleusercontent.com";
 
 
 ReactDOM.createRoot(document.getElementById("root")).render(

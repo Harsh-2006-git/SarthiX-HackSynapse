@@ -71,7 +71,7 @@ async function fetchRealHotels(destination, checkIn, checkOut, budget) {
       sorted.sort((a, b) => (b.rate_per_night?.extracted_lowest || 0) - (a.rate_per_night?.extracted_lowest || 0));
     }
 
-    return sorted.slice(0, 6).map(h => ({
+    return sorted.slice(0, 3).map(h => ({
       name: h.name,
       rating: h.overall_rating ? `${h.overall_rating}/5 (${h.reviews || 0} reviews)` : "Not rated",
       pricePerNight: h.rate_per_night?.lowest || "Price on request",
@@ -86,13 +86,12 @@ async function fetchRealHotels(destination, checkIn, checkOut, budget) {
 // ── SerpAPI: fetch real transport options (Trains + Buses) ───────────────────
 async function fetchRealTransport(origin, destination) {
   try {
-    const [trainRes, busRes] = await Promise.allSettled([
+    const [trainRes, busRes, flightRes] = await Promise.allSettled([
       axios.get("https://serpapi.com/search.json", {
         params: {
           engine: "google",
           q: `train from ${origin} to ${destination} schedule timing train number fare irctc`,
-          gl: "in",
-          hl: "en",
+          gl: "in", hl: "en",
           api_key: process.env.SERP_API_KEY,
         },
         timeout: 9000,
@@ -101,8 +100,16 @@ async function fetchRealTransport(origin, destination) {
         params: {
           engine: "google",
           q: `bus from ${origin} to ${destination} timetable operators departure arrival fare redbus`,
-          gl: "in",
-          hl: "en",
+          gl: "in", hl: "en",
+          api_key: process.env.SERP_API_KEY,
+        },
+        timeout: 9000,
+      }),
+      axios.get("https://serpapi.com/search.json", {
+        params: {
+          engine: "google",
+          q: `flight from ${origin} to nearest airport ${destination} fare indigo spicejet air india`,
+          gl: "in", hl: "en",
           api_key: process.env.SERP_API_KEY,
         },
         timeout: 9000,
@@ -110,7 +117,6 @@ async function fetchRealTransport(origin, destination) {
     ]);
 
     const snippets = [];
-
     const extractData = (res, type) => {
       if (res.status === "fulfilled" && res.value?.data) {
         const d = res.value.data;
@@ -121,8 +127,7 @@ async function fetchRealTransport(origin, destination) {
         if (d.knowledge_graph?.description) {
           snippets.push(`[${type} OVERVIEW]: ${d.knowledge_graph.description}`);
         }
-        const organic = d.organic_results || [];
-        organic.slice(0, 4).forEach((r) => {
+        (d.organic_results || []).slice(0, 4).forEach((r) => {
           snippets.push(`[${type} OPTION]: ${r.title} — ${(r.snippet || "").slice(0, 200)}`);
         });
       }
@@ -130,6 +135,7 @@ async function fetchRealTransport(origin, destination) {
 
     extractData(trainRes, "TRAIN");
     extractData(busRes, "BUS");
+    extractData(flightRes, "FLIGHT");
 
     return snippets;
   } catch (err) {
@@ -316,7 +322,19 @@ CRITICAL RULES & FORMATTING REQUIREMENTS:
      - transportation_options: Return bus/train or local auto to station with exact timings & fare.
      - accommodation: "कोई नहीं (${destination} से प्रस्थान)" / "None (Return departure)", rating: "लागू नहीं" / "N/A", price: "लागू नहीं" / "N/A".
      - estimated_cost: e.g. "₹1,100 (भोजन, स्थानीय परिवहन)".
-5. NOTES: Provide rich, authentic practical guidance for pilgrims visiting ${destination} (clothing etiquette, Bhasma Aarti pre-booking rules, best darshan queue timings, local sattvic food & hygiene, safety & medicines, local auto/e-rickshaw fares).
+5. NOTES: Rich practical guidance for ${destination} pilgrims (dress code, booking tips, best darshan timings, sattvic food, safety, local auto fares).
+6. ACCOMMODATION_OPTIONS: For each day that needs a stay, provide an array of exactly 3 hotel options:
+   - Option 1 (index 0): Budget/Dharamshala (cheapest — ₹500-₹1500/night)
+   - Option 2 (index 1): Mid-range / Comfortable Hotel (₹1500-₹4000/night) — use real hotel data if provided above
+   - Option 3 (index 2): Luxury / Premium Hotel (₹4000+/night) — use real hotel data if provided above
+   - Each option must have: name, rating, price (per night), type ("Budget"/"Mid-range"/"Luxury"), highlights (1 line unique selling point).
+   - For transit/travel-only days set 1 entry: name="During transit", type="Transit", rating="N/A", price="Included in transit", highlights="Overnight journey in bus/train".
+7. TRANSPORTATION_OPTIONS for TRAVEL DAYS (Day 1 departure + last day return): Always provide EXACTLY 3 objects in order:
+   - { mode: "Bus", icon: "bus", operator: "e.g. Kalpana Travels / RedBus", details: "departure city, time, arrival city, time, class", departure: "HH:MM", arrival: "HH:MM", price: "₹XXX per person", available: true }
+   - { mode: "Train", icon: "train", operator: "e.g. 12919 Malwa Express / IRCTC", details: "train number, class options, departure station → arrival station", departure: "HH:MM", arrival: "HH:MM", price: "₹XXX per person (3A)", available: true }
+   - { mode: "Flight", icon: "plane", operator: "e.g. IndiGo / Air India", details: "nearest airport to origin → nearest airport to destination + cab/shuttle info", departure: "HH:MM", arrival: "HH:MM", price: "₹XXXX per person (approx)", available: true }
+   Use real data from the transport snippets above where available; otherwise provide realistic estimates.
+8. TRANSPORTATION_OPTIONS for MIDDLE/SIGHTSEEING DAYS: Only provide local transport options (auto-rickshaw, e-rickshaw, cab) — do NOT include Bus/Train/Flight for local days.
 
 Return ONLY this JSON structure exactly:
 {
@@ -333,23 +351,63 @@ Return ONLY this JSON structure exactly:
     "daily_plan": [
       {
         "day": 1,
-        "title": "Daily Immersion",
-        "subtitle": "2 Sacred Activities Planned",
-        "estimated_cost": "₹2,600 (बस किराया और यात्रा के दौरान का भोजन)",
-        "activities": [
-          "activity 1",
-          "activity 2"
+        "title": "string",
+        "subtitle": "string",
+        "estimated_cost": "string",
+        "activities": ["activity 1", "activity 2"],
+        "accommodation_options": [
+          {
+            "name": "string",
+            "rating": "string",
+            "price": "string",
+            "type": "Budget",
+            "highlights": "string"
+          },
+          {
+            "name": "string",
+            "rating": "string",
+            "price": "string",
+            "type": "Mid-range",
+            "highlights": "string"
+          },
+          {
+            "name": "string",
+            "rating": "string",
+            "price": "string",
+            "type": "Luxury",
+            "highlights": "string"
+          }
         ],
-        "accommodation": {
-          "name": "string",
-          "rating": "string",
-          "price": "string"
-        },
         "transportation_options": [
           {
-            "mode": "string",
+            "mode": "Bus",
+            "icon": "bus",
+            "operator": "string",
             "details": "string",
-            "price": "string"
+            "departure": "string",
+            "arrival": "string",
+            "price": "string",
+            "available": true
+          },
+          {
+            "mode": "Train",
+            "icon": "train",
+            "operator": "string",
+            "details": "string",
+            "departure": "string",
+            "arrival": "string",
+            "price": "string",
+            "available": true
+          },
+          {
+            "mode": "Flight",
+            "icon": "plane",
+            "operator": "string",
+            "details": "string",
+            "departure": "string",
+            "arrival": "string",
+            "price": "string",
+            "available": true
           }
         ]
       }

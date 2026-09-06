@@ -647,7 +647,7 @@ export default function ChatbotPage() {
 
         {/* GENERATED ITINERARY DISPLAY SECTION */}
         {itinerary && (
-          <section className="container mx-auto px-4 sm:px-6 py-6 animate-fadeInUp max-w-5xl w-full">
+          <section className="container mx-auto px-4 sm:px-6 py-6 animate-fadeInUp max-w-6xl xl:max-w-7xl w-full">
             <div className="bg-white/95 backdrop-blur-3xl rounded-3xl border border-orange-100 shadow-2xl overflow-hidden flex flex-col">
               <div className="px-6 md:px-8 py-5 border-b border-orange-100 flex flex-col sm:flex-row items-center justify-between gap-4 bg-gradient-to-r from-orange-50/50 to-amber-50/50">
                 <div className="flex items-center gap-4">

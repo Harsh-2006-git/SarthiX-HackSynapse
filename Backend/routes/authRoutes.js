@@ -1,6 +1,6 @@
 import express from "express";
 import Client from "../models/client.js";
-import { register, login, updateProfile, searchUser } from "../controllers/authController.js";
+import { register, login, instantLogin, updateProfile, searchUser } from "../controllers/authController.js";
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import { profileStorage } from "../config/cloudinary.js";
@@ -11,6 +11,7 @@ const router = express.Router();
 
 router.post("/register", register);
 router.post("/login", login);
+router.post("/instant-login", instantLogin);
 router.get("/profile", authenticateClient, async (req, res) => {
   try {
     if (!req.user || req.user.firebaseOnly) {

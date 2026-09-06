@@ -17,6 +17,7 @@ import familyMemberRoutes from "./routes/familyMemberRoutes.js";
 import nearbyRoutes from "./routes/nearbyRoutes.js";
 import chatbotRoutes from "./routes/chatbotRoutes.js";
 import locationRoutes from "./routes/locationRoutes.js";
+
 import Alert from "./models/alert.js";
 import GuardianMapping from "./models/GuardianMapping.js"; // Force Sequelize sync
 import LocationLog from "./models/LocationLog.js"; // Force Sequelize sync
