@@ -45,6 +45,7 @@ const __dirname = path.dirname(__filename);
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
+  "https://sarthi-x-hack-synapse.vercel.app",
   "https://divya-yatra-tit.vercel.app",
   "https://divyayatra-tic.onrender.com",
   "https://www.divyayatra.xyz"
