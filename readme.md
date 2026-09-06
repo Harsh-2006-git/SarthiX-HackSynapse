@@ -22,6 +22,11 @@
 
 <br/>
 
+
+![Uploading image.png…]()
+
+---
+
 <img src="https://img.shields.io/badge/Google%20Gemini-AI%20Core-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white"/>
 <img src="https://img.shields.io/badge/YOLOv8-Computer%20Vision-FF6F00?style=for-the-badge&logo=python&logoColor=white"/>
 <img src="https://img.shields.io/badge/Socket.IO-4.8.3-010101?style=for-the-badge&logo=socket.io&logoColor=white"/>
