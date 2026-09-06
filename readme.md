@@ -2,8 +2,6 @@
 
 # 🕉️ DIVYA YATRA
 
-### **SarthiX**
-
 ### AI-Powered Smart Pilgrim Experience & Mega-Event Crowd Management Platform
 
 <p>
@@ -21,6 +19,13 @@
 <img src="https://img.shields.io/badge/MySQL-8.0-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/>
 
 <br/>
+
+---
+
+<img width="1875" height="901" alt="Screenshot 2026-09-06 103457" src="https://github.com/user-attachments/assets/adb075d9-484e-48ae-bb60-f7e6daabcf64" />
+
+
+---
 
 <img src="https://img.shields.io/badge/Google%20Gemini-AI%20Core-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white"/>
 <img src="https://img.shields.io/badge/YOLOv8-Computer%20Vision-FF6F00?style=for-the-badge&logo=python&logoColor=white"/>
